@@ -26,6 +26,7 @@ const MAX_PLAYERS = 6;
 const ROOM_TTL_MS = 6 * 60 * 60 * 1000;
 const LOBBY_DISCONNECT_GRACE_MS = 60 * 1000;
 const SESSION_CLOSE_SECONDS = TEST_SPEED ? 2 : 30;
+const TERMINAL_EVENT_GRACE_MS = TEST_SPEED ? 40 : 350;
 
 const compounds = {
   S: { name: 'SOFT', deg: 16 },
@@ -209,13 +210,23 @@ function broadcast(room, type = 'state', payloadFactory = null) {
   }
 }
 
+function finishTerminalStream(res) {
+  // Give reverse proxies (Render included) a brief window to flush the terminal SSE event.
+  // Ending the response in the same tick can make the browser miss session_exit/session_closed.
+  const timer = setTimeout(() => { try { res.end(); } catch {} }, TERMINAL_EVENT_GRACE_MS);
+  timer.unref?.();
+}
 function endPlayerStreams(code, playerId, type = null, data = null) {
   const set = getClientSet(code, playerId, false);
   if (!set) return;
   for (const res of [...set]) {
-    try { if (type) sendSSE(res, type, data || {}); } catch {}
-    try { res.end(); } catch {}
+    try {
+      if (type) sendSSE(res, type, data || {});
+      res.write(': terminal\n\n');
+    } catch {}
+    finishTerminalStream(res);
   }
+  // Detach immediately so no later room broadcast can overwrite the terminal event.
   set.clear();
   const roomMap = sseClients.get(code);
   if (roomMap) roomMap.delete(playerId);
@@ -224,13 +235,18 @@ function closeRoomPermanently(room, reason = 'all_accepted') {
   closedRooms.set(room.code, now());
   const roomMap = sseClients.get(room.code);
   if (roomMap) {
-    for (const [pid, set] of roomMap) {
+    for (const [, set] of roomMap) {
       for (const res of [...set]) {
-        try { sendSSE(res, 'session_closed', { code: room.code, reason }); } catch {}
-        try { res.end(); } catch {}
+        try {
+          sendSSE(res, 'session_closed', { code: room.code, reason });
+          res.write(': terminal\n\n');
+        } catch {}
+        finishTerminalStream(res);
       }
     }
   }
+  // Remove the room from all live registries immediately; open responses only remain long
+  // enough to deliver the final event to already-connected browsers.
   sseClients.delete(room.code);
   rooms.delete(room.code);
 }
@@ -253,6 +269,15 @@ function startCloseVote(room, requester) {
   if (room.closeVote) throw new Error('C’è già una richiesta di chiusura in corso');
   const humans = room.players.filter(p => !p.isBot);
   if (!humans.some(p => p.id === requester.id)) throw new Error('Solo i giocatori reali possono richiedere la chiusura');
+
+  // With one real player there is nobody to consult: close atomically and tell the client
+  // in both channels (SSE + POST response), without ever rendering a fake 30 s vote.
+  if (humans.length === 1) {
+    log(room, `⏹️ ${requester.name} ha chiuso la sessione.`);
+    closeRoomPermanently(room, 'single_human_closed');
+    return { closed: true, exited: true };
+  }
+
   const remaining = room.deadline ? Math.max(0, room.deadline - now()) : null;
   room.closeVote = {
     id: uid(), requesterId: requester.id, requesterName: requester.name,
@@ -263,7 +288,7 @@ function startCloseVote(room, requester) {
   room.deadline = null;
   log(room, `⏹️ ${requester.name} ha chiesto di fermare la sessione.`);
   broadcast(room);
-  if (humans.length === 1) finalizeCloseVote(room, false);
+  return { closed: false, exited: false, voteStarted: true };
 }
 function fillPendingBotChoices(room) {
   if (room.status !== 'racing') return;
@@ -290,15 +315,15 @@ function resumeAfterCloseVote(room, vote) {
 }
 function finalizeCloseVote(room, timedOut = false) {
   const vote = room.closeVote;
-  if (!vote) return;
+  if (!vote) return { pending: false };
   if (timedOut) for (const id of vote.participantIds) if (!vote.votes[id]) vote.votes[id] = 'no';
   const allAnswered = vote.participantIds.every(id => !!vote.votes[id]);
-  if (!allAnswered) return;
+  if (!allAnswered) return { pending: true };
   const allYes = vote.participantIds.every(id => vote.votes[id] === 'yes');
   if (allYes) {
     log(room, '⏹️ Tutti i giocatori reali hanno accettato. Sessione chiusa definitivamente.');
     closeRoomPermanently(room, 'all_humans_accepted');
-    return;
+    return { pending: false, closed: true, exitedIds: [...vote.participantIds] };
   }
   const yesIds = vote.participantIds.filter(id => vote.votes[id] === 'yes');
   const noIds = vote.participantIds.filter(id => vote.votes[id] === 'no');
@@ -309,10 +334,11 @@ function finalizeCloseVote(room, timedOut = false) {
     if (rooms.has(room.code)) removePlayer(room, id);
   }
   room.sessionCloseFinalizing = false;
-  if (!rooms.has(room.code)) return;
+  if (!rooms.has(room.code)) return { pending: false, closed: true, exitedIds: yesIds };
   const stayNames = noIds.map(id => room.players.find(p => p.id === id)?.name).filter(Boolean);
   log(room, `▶️ Sessione continua. Restano: ${stayNames.join(', ') || 'giocatori rimasti'}.`);
   resumeAfterCloseVote(room, vote);
+  return { pending: false, closed: false, exitedIds: yesIds, stayedIds: noIds };
 }
 function castCloseVote(room, player, choice) {
   const vote = room.closeVote;
@@ -322,7 +348,9 @@ function castCloseVote(room, player, choice) {
   if (!['yes', 'no'].includes(choice)) throw new Error('Risposta non valida');
   vote.votes[player.id] = choice;
   log(room, `${choice === 'yes' ? '✅' : '↩️'} ${player.name}: ${choice === 'yes' ? 'OK, esco' : 'NO, resto'}.`);
-  touch(room); broadcast(room); finalizeCloseVote(room, false);
+  touch(room);
+  broadcast(room);
+  return finalizeCloseVote(room, false);
 }
 
 function newPlayer(name, color, isBot = false) {
@@ -824,7 +852,7 @@ function staticFile(req, res) {
     } else {
       res.writeHead(200, {
         'Content-Type': mime(file),
-        'Cache-Control': ['service-worker.js','index.html','app-1.5.js','styles-1.5.css'].includes(path.basename(file)) ? 'no-cache, no-store, must-revalidate' : 'public, max-age=300',
+        'Cache-Control': ['service-worker.js','index.html','app-1.6.js','styles-1.6.css'].includes(path.basename(file)) ? 'no-cache, no-store, must-revalidate' : 'public, max-age=300',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'same-origin',
         'X-Frame-Options': 'DENY',
@@ -838,7 +866,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const parts = u.pathname.split('/').filter(Boolean);
-    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.5.0' });
+    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.6.0' });
 
     if (req.method === 'POST' && u.pathname === '/api/rooms') {
       const b = await readBody(req);
@@ -874,6 +902,7 @@ const server = http.createServer(async (req, res) => {
         broadcast(room);
         req.on('close', () => {
           set.delete(res);
+          if (!rooms.has(code)) return;
           if (!set.size) {
             getClientSet(code, pid, false)?.clear();
             const current = room.players.find(x => x.id === pid);
@@ -911,12 +940,21 @@ const server = http.createServer(async (req, res) => {
       if (!p) return json(res, 403, { error: 'Pilota non valido' });
 
       if (req.method === 'POST' && parts[3] === 'close-request') {
-        try { startCloseVote(room, p); return json(res, 200, { ok: true }); }
-        catch (e) { return json(res, 409, { error: e.message }); }
+        try {
+          const outcome = startCloseVote(room, p);
+          return json(res, 200, { ok: true, ...outcome });
+        } catch (e) { return json(res, 409, { error: e.message }); }
       }
       if (req.method === 'POST' && parts[3] === 'close-vote') {
-        try { castCloseVote(room, p, b.choice); return json(res, 200, { ok: true }); }
-        catch (e) { return json(res, 409, { error: e.message }); }
+        try {
+          const outcome = castCloseVote(room, p, b.choice) || { pending: true };
+          return json(res, 200, {
+            ok: true,
+            closed: !!outcome.closed,
+            exited: !!outcome.exitedIds?.includes(p.id),
+            pending: !!outcome.pending,
+          });
+        } catch (e) { return json(res, 409, { error: e.message }); }
       }
       if (req.method === 'POST' && parts[3] === 'leave') {
         // If a shared close request is active, leaving counts as accepting it.
@@ -999,7 +1037,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🏁 Race Command Web 1.5 avviato`);
+  console.log(`\n🏁 Race Command Web 1.6 avviato`);
   console.log(`   Locale: http://localhost:${PORT}`);
   const nets = os.networkInterfaces();
   for (const arr of Object.values(nets)) for (const n of arr || []) if (n.family === 'IPv4' && !n.internal) console.log(`   Wi-Fi/LAN: http://${n.address}:${PORT}`);

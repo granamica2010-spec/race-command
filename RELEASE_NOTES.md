@@ -1,3 +1,13 @@
+# Race Command Web 1.6
+
+## Fix live session exit
+- Risolto il caso in cui la sessione era già chiusa sul server ma il telefono restava nella schermata precedente finché non veniva fatto F5.
+- `session_exit` e `session_closed` vengono ora lasciati fluire prima della chiusura dello stream SSE.
+- STOP/voto restituiscono anche `closed` / `exited` al client come fallback immediato.
+- Il client torna alla home automaticamente, pulisce la sessione locale e chiude la connessione realtime.
+- Se un terminal event viene comunque perso, il controllo di riconnessione verifica lo stato dopo ~650 ms invece di 2,5 s.
+- Nuovo test automatico `test-live-exit.js`: verifica uscita live senza refresh in modalità solo, voto parziale e unanimità.
+
 # Race Command Web 1.5
 
 ## Novità principali

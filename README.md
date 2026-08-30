@@ -1,9 +1,18 @@
-# Race Command — Web 1.5
+# Race Command — Web 1.6
 
 Race Command è un gioco strategico di corse multiplayer da browser, pensato per smartphone, tablet e PC.
 
 
-## Novità 1.5 — Pit stop programmabile
+## Novità 1.6 — Uscita sessione realmente live
+
+- Quando una sessione viene chiusa, il browser torna automaticamente alla home: **nessun F5 necessario**.
+- Chi accetta di uscire in una votazione viene espulso live appena la votazione si conclude.
+- Se tutti accettano, tutti i dispositivi ricevono immediatamente la chiusura definitiva.
+- La risposta HTTP al click fa anche da fallback: perfino se un proxy perdesse l’ultimo evento realtime, il dispositivo che ha appena votato/eseguito STOP esce comunque subito.
+- Il server lascia un brevissimo margine di flush all’evento terminale prima di chiudere lo stream, utile dietro proxy come Render.
+- Se rimane un solo umano, STOP chiude direttamente la stanza senza creare una votazione fittizia.
+
+## Novità 1.5 — Chiusura condivisa e pit programmabile
 
 - Il pit stop si può **programmare in qualsiasi punto del circuito**.
 - Il piano box è separato dalla scelta del turno: puoi avere, ad esempio, `BOX PROGRAMMATO · INTER` e scegliere comunque NORMAL / ATTACK / CONSERVE / ERS.
@@ -118,7 +127,7 @@ Le stanze sono conservate nella memoria del server. Durante una partita attiva i
 
 
 ## Verifica versione online
-Dopo il deploy apri `/api/health`: la build corretta deve mostrare `"version":"1.5.0"`. Durante la gara compare anche il badge `v1.5`. Se non compare, il deploy non ha ancora sostituito la build precedente.
+Dopo il deploy apri `/api/health`: la build corretta deve mostrare `"version":"1.6.0"`. Durante la gara compare anche il badge `v1.6`. Se non compare, il deploy non ha ancora sostituito la build precedente.
 
 
 ## Chiusura condivisa della sessione

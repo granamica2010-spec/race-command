@@ -1,8 +1,8 @@
 {
   "name": "race-command-web",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
-  "description": "Race Command 1.5 - six-car multiplayer racing strategy game with shared session close voting",
+  "description": "Race Command 1.6 - live session exit/closure propagation with robust multiplayer voting",
   "engines": {
     "node": ">=22"
   },
@@ -10,8 +10,9 @@
     "start": "node server.js",
     "test": "node test-smoke.js",
     "test:full": "node test-full-game.js",
-    "test:all": "node test-smoke.js && node test-session-close.js && node test-full-game.js && node test-balance.js",
+    "test:all": "node test-smoke.js && node test-session-close.js && node test-live-exit.js && node test-full-game.js && node test-balance.js",
     "test:balance": "node test-balance.js",
-    "test:close": "node test-session-close.js"
+    "test:close": "node test-session-close.js",
+    "test:live-exit": "node test-live-exit.js"
   }
 }
