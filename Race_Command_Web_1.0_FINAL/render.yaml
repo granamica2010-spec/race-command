@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: race-command
-    runtime: docker
-    region: frankfurt
-    plan: free
-    healthCheckPath: /api/health
-    autoDeploy: true
