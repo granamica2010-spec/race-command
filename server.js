@@ -25,9 +25,9 @@ const ROOM_TTL_MS = 6 * 60 * 60 * 1000;
 const LOBBY_DISCONNECT_GRACE_MS = 60 * 1000;
 
 const compounds = {
-  S: { name: 'SOFT', deg: 10 },
+  S: { name: 'SOFT', deg: 16 },
   M: { name: 'MEDIUM', deg: 7 },
-  H: { name: 'HARD', deg: 5 },
+  H: { name: 'HARD', deg: 4 },
   I: { name: 'INTER', deg: 8 },
   W: { name: 'WET', deg: 6 },
 };
@@ -38,7 +38,7 @@ const weather = [
   { name: 'VERY WET', icon: '⛈️', rain: 95 },
 ];
 const grip = {
-  DRY: { S: 10, M: 8, H: 6, I: 4, W: 3 },
+  DRY: { S: 10, M: 8, H: 7, I: 4, W: 3 },
   DAMP: { S: 6, M: 6, H: 5, I: 10, W: 7 },
   WET: { S: 4, M: 4, H: 4, I: 8, W: 10 },
   'VERY WET': { S: 3, M: 3, H: 3, I: 6, W: 10 },
@@ -68,8 +68,21 @@ function standings(room) { return [...room.players].sort((a, b) => b.progress - 
 function nextAhead(room, p) { return room.players.filter(x => x.id !== p.id && x.progress > p.progress).sort((a, b) => a.progress - b.progress)[0] || null; }
 function effectiveDie(room, p) {
   let n = grip[weather[room.weatherIndex].name][p.tyre];
-  if (p.wear < 45) n -= 2;
-  if (p.wear < 20) n -= 1;
+  // Compound-specific falloff: Soft is fastest fresh but loses performance sharply;
+  // Medium is progressive; Hard gives up peak pace for a much longer stable stint.
+  if (p.tyre === 'S') {
+    if (p.wear < 70) n -= 2;
+    if (p.wear < 40) n -= 2;
+    if (p.wear < 20) n -= 1;
+  } else if (p.tyre === 'M') {
+    if (p.wear < 50) n -= 1;
+    if (p.wear < 20) n -= 2;
+  } else if (p.tyre === 'H') {
+    if (p.wear < 20) n -= 1;
+  } else {
+    if (p.wear < 45) n -= 2;
+    if (p.wear < 20) n -= 1;
+  }
   return Math.max(3, n);
 }
 function drsEligible(room, p) {
@@ -424,7 +437,7 @@ function actionScore(room, p, action) {
     if (boxAvailable(p)) {
       pitted = true;
       const nt = p.pendingPitTyre && compounds[p.pendingPitTyre] ? p.pendingPitTyre : 'M';
-      p.tyre = nt; p.wear = 100; bonus -= room.safetyTurns > 0 ? 1 : 3; p.stats.pits++; p.strategy.push(nt); mods.push(`PIT ${bonus}`);
+      p.tyre = nt; p.wear = 100; bonus -= room.safetyTurns > 0 ? 2 : 5; p.stats.pits++; p.strategy.push(nt); mods.push(`PIT ${bonus}`);
       log(room, `🔧 ${p.name}: pit stop, ${compounds[nt].name}.`);
     } else mods.push('BOX NON DISPONIBILE');
   } else {
@@ -478,7 +491,7 @@ function resolveActions(room) {
       if (boxAvailable(p)) {
         pitted = true;
         const nt = p.pendingPitTyre && compounds[p.pendingPitTyre] ? p.pendingPitTyre : 'M';
-        p.tyre = nt; p.wear = 100; bonus -= room.safetyTurns > 0 ? 1 : 3; p.stats.pits++; p.strategy.push(nt); mods.push(`PIT ${bonus}`); log(room, `🔧 ${p.name}: pit stop, ${compounds[nt].name}.`);
+        p.tyre = nt; p.wear = 100; bonus -= room.safetyTurns > 0 ? 2 : 5; p.stats.pits++; p.strategy.push(nt); mods.push(`PIT ${bonus}`); log(room, `🔧 ${p.name}: pit stop, ${compounds[nt].name}.`);
       } else mods.push('BOX NON DISPONIBILE');
     } else p.ers = clamp(p.ers + 5);
     if (!pitted && drsSnapshot.get(p.id)) { bonus += 2; mods.push('DRS +2'); }
@@ -572,7 +585,7 @@ function maybeResolveDuel(room) {
     d.stats.duelW++; a.stats.duelL++; log(room, `⚔️ ${d.name} difende su ${a.name}.`);
   }
   const risky = ['aggressive', 'hardDefend'];
-  const contact = (risky.includes(ac) || risky.includes(dc)) && Math.random() < .14;
+  const contact = ac !== 'hold' && dc !== 'noFight' && (risky.includes(ac) || risky.includes(dc)) && Math.random() < .14;
   if (contact) { room.safetyTurns = 2; compressField(room); log(room, '🟡 Contatto! Safety Car per 2 turni.'); }
   room.duel.result = { attackerChoice: ac, defenderChoice: dc, attackerScore: as, defenderScore: ds, winner, contact };
   room.duelCooldown = 2;
@@ -672,7 +685,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const parts = u.pathname.split('/').filter(Boolean);
-    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.0.0-final' });
+    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.1.0' });
 
     if (req.method === 'POST' && u.pathname === '/api/rooms') {
       const b = await readBody(req);
@@ -778,6 +791,7 @@ const server = http.createServer(async (req, res) => {
         const allowed = ['normal', 'attack', 'conserve', 'ers', 'box'];
         if (!allowed.includes(b.action)) return json(res, 400, { error: 'Azione non valida' });
         if (b.action === 'box' && !boxAvailable(p)) return json(res, 409, { error: `Pit entry fra ${boxDistance(p)} caselle` });
+        if (b.action === 'ers' && p.ers < 25) return json(res, 409, { error: `ERS insufficiente: serve 25%, hai ${Math.round(p.ers)}%` });
         p.selectedAction = b.action;
         if (b.action === 'box' && compounds[b.pitTyre]) p.pendingPitTyre = b.pitTyre;
         touch(room); broadcast(room); maybeResolveActions(room);
@@ -790,6 +804,7 @@ const server = http.createServer(async (req, res) => {
         const role = p.id === room.duel.attackerId ? 'attack' : 'defend';
         const allowed = role === 'attack' ? ['attack', 'aggressive', 'ersAttack', 'hold'] : ['defend', 'hardDefend', 'ersDef', 'noFight'];
         if (!allowed.includes(b.choice)) return json(res, 400, { error: 'Scelta non valida' });
+        if ((b.choice === 'ersAttack' || b.choice === 'ersDef') && p.ers < 15) return json(res, 409, { error: `ERS insufficiente: serve 15%, hai ${Math.round(p.ers)}%` });
         room.duel.choices[p.id] = b.choice; touch(room); broadcast(room); maybeResolveDuel(room);
         return json(res, 200, { ok: true });
       }

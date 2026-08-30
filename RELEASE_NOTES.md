@@ -1,3 +1,27 @@
+# Race Command 1.1 — Release Notes
+
+## Race Awareness
+- Duelli con mappa e classifica sempre visibili.
+- Evidenziazione dei due piloti coinvolti e distacco pre-duello.
+- Informazioni su gomma, usura ed ERS durante la scelta.
+- Spettatori mantengono la vista della gara durante i duelli.
+- Timer duello sempre visibile.
+- ERS non selezionabile se insufficiente, con validazione server-side.
+- Classifica con distacco dal leader.
+- START/FINISH e senso di marcia resi espliciti sulla mappa.
+- Scelta gomme al box con dado previsto e indicazione IDEALE.
+
+## Balance pass
+- Soft: degrado 16 (prima 10), curva prestazionale più aggressiva.
+- Medium: progressiva e bilanciata.
+- Hard: D7 su asciutto e degrado 4 (prima D6/degrado 5).
+- Pit loss normale circa -5, Safety Car -2.
+- Test Monte Carlo interno: su stint lunghi asciutti Soft e Medium risultano molto vicine, Hard sacrifica qualche casella per evitare soste.
+
+## Correzioni
+- Nessun contatto casuale se l’attaccante rinuncia (HOLD) o il difensore lascia passare (DON’T FIGHT).
+- Selezionare un’opzione nel duello non ricostruisce più la pagina, evitando salti di scroll su smartphone.
+
 # Race Command 1.0 FINAL
 
 ## Versione finale del gameplay base

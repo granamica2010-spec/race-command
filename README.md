@@ -1,6 +1,17 @@
-# Race Command — Web 1.0 FINAL
+# Race Command — Web 1.1
 
 Race Command è un gioco strategico di corse multiplayer da browser, pensato per smartphone, tablet e PC.
+
+
+## Novità 1.1 — Race Awareness
+- Durante ogni duello restano visibili **mappa, posizione di tutte e 6 le auto, classifica, gomme, usura ed ERS**.
+- I due piloti coinvolti sono evidenziati sulla mappa e in classifica.
+- Il duello mostra ruolo (attaccante/difensore), posizione e distacco prima della scelta.
+- Le opzioni ERS vengono disabilitate quando l’energia non basta, con controllo anche lato server.
+- Classifica normale con distacchi dal leader e maggiore leggibilità delle risorse.
+- Mappa con START/FINISH e frecce di direzione più chiare.
+- Box: ogni mescola mostra il dado previsto per il meteo attuale e quella migliore viene evidenziata.
+- Bilanciamento gomme rivisto: Soft più esplosiva ma molto più corta, Medium equilibrata, Hard più stabile; pit stop normale più costoso.
 
 ## Regola fondamentale: griglia sempre da 6
 Il server gestisce automaticamente i bot:
