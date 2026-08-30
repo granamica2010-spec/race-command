@@ -37,6 +37,20 @@ const weather = [
   { name: 'WET', icon: '🌧️', rain: 76 },
   { name: 'VERY WET', icon: '⛈️', rain: 95 },
 ];
+function randomStartingWeatherIndex() {
+  const r = Math.random();
+  if (r < 0.62) return 0;      // DRY
+  if (r < 0.84) return 1;      // DAMP
+  if (r < 0.96) return 2;      // WET
+  return 3;                     // VERY WET
+}
+function botStartTyre(room, index = 0) {
+  const w = weather[room.weatherIndex].name;
+  if (w === 'DAMP') return index % 3 === 0 ? 'W' : 'I';
+  if (w === 'WET') return index % 3 === 0 ? 'I' : 'W';
+  if (w === 'VERY WET') return 'W';
+  return ['S', 'M', 'H'][index % 3];
+}
 const grip = {
   DRY: { S: 10, M: 8, H: 7, I: 4, W: 3 },
   DAMP: { S: 6, M: 6, H: 5, I: 10, W: 7 },
@@ -224,11 +238,19 @@ function syncLobbyBots(room) {
   while (room.players.filter(p => p.isBot).length < desiredBots) {
     const idx = room.players.filter(p => p.isBot).length;
     const bot = newPlayer(botNameFor(room, idx), palette[room.players.length % palette.length], true);
-    bot.tyre = ['S', 'M', 'H'][idx % 3];
+    bot.tyre = botStartTyre(room, idx);
     bot.strategy = [bot.tyre];
     room.players.push(bot);
   }
-  room.players.forEach((p, i) => { p.color = palette[i % palette.length]; if (p.isBot) p.ready = true; });
+  let botSlot = 0;
+  room.players.forEach((p, i) => {
+    p.color = palette[i % palette.length];
+    if (p.isBot) {
+      p.ready = true;
+      p.tyre = botStartTyre(room, botSlot++);
+      p.strategy = [p.tyre];
+    }
+  });
   touch(room);
 }
 function humanCount(room) { return room.players.filter(p => !p.isBot).length; }
@@ -242,7 +264,7 @@ function createRoom(hostName) {
     phase: 'lobby',
     turn: 0,
     maxLaps: DEFAULT_LAPS,
-    weatherIndex: 0,
+    weatherIndex: randomStartingWeatherIndex(),
     safetyTurns: 0,
     duelCooldown: 0,
     players: [host],
@@ -270,7 +292,7 @@ function resetRoomToLobby(room) {
   room.status = 'lobby';
   room.phase = 'lobby';
   room.turn = 0;
-  room.weatherIndex = 0;
+  room.weatherIndex = randomStartingWeatherIndex();
   room.safetyTurns = 0;
   room.duelCooldown = 0;
   room.deadline = null;
@@ -379,7 +401,7 @@ function prepareRace(room) {
   room.phase = 'lights';
   room.deadline = now() + LIGHTS_SECONDS * 1000;
   room.turn = 0;
-  room.weatherIndex = 0;
+  // Keep the pre-race weather shown in the lobby: tyre choice must match the actual start conditions.
   room.safetyTurns = 0;
   room.duelCooldown = 0;
   room.duel = null;
@@ -685,7 +707,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const parts = u.pathname.split('/').filter(Boolean);
-    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.1.0' });
+    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.2.0' });
 
     if (req.method === 'POST' && u.pathname === '/api/rooms') {
       const b = await readBody(req);
@@ -760,7 +782,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (req.method === 'POST' && parts[3] === 'ready') {
         if (room.status !== 'lobby') return json(res, 409, { error: 'Non in lobby' });
-        if (['S', 'M', 'H'].includes(b.tyre)) p.tyre = b.tyre;
+        if (['S', 'M', 'H', 'I', 'W'].includes(b.tyre)) p.tyre = b.tyre;
         p.strategy = [p.tyre];
         p.ready = !!b.ready;
         touch(room); broadcast(room);

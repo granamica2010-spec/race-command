@@ -1,3 +1,22 @@
+# Race Command 1.2 — Pre-race Weather & Full Tyre Choice
+
+- Meteo di partenza visibile direttamente nella lobby.
+- Previsione pre-gara disponibile prima del READY.
+- Soft / Medium / Hard / Intermediate / Wet tutte selezionabili in pre-room.
+- Il server salva subito la mescola selezionata, anche prima del READY.
+- Il meteo mostrato in lobby viene mantenuto fino alla partenza.
+- I bot impostano la mescola di partenza in funzione del meteo.
+- Il rematch genera un nuovo scenario meteorologico.
+
+---
+
+# Race Command 1.1.1 — Lobby tyre hotfix
+
+- Corretto il bug che riportava sempre la selezione pre-gara su Medium.
+- Soft / Medium / Hard sono ora selezionabili prima del READY.
+- La mescola scelta viene salvata immediatamente sul server e sopravvive a refresh/riconnessione.
+- Una volta READY, la mescola resta bloccata finché non si annulla READY.
+
 # Race Command 1.1 — Release Notes
 
 ## Race Awareness

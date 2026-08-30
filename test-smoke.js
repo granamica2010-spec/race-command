@@ -42,11 +42,23 @@ function composition(s) { return [s.players.filter(p=>!p.isBot).length, s.player
     x=await request('/api/rooms',{name:'Solo'}); assert(x.r.ok,'solo create');
     const soloCode=x.j.code, solo=x.j.playerId;
     s=await state(soloCode,solo); assert(composition(s).join(',')==='1,5','solo room composition');
+    // Pre-room tyre selection must persist before READY (regression: UI used to snap back to Medium).
+    await request(`/api/rooms/${soloCode}/ready`,{playerId:solo,ready:false,tyre:'S'});
+    s=await state(soloCode,solo); assert(s.me.tyre==='S' && !s.me.ready,'pre-room Soft selection must persist before READY');
+    await request(`/api/rooms/${soloCode}/ready`,{playerId:solo,ready:false,tyre:'H'});
+    s=await state(soloCode,solo); assert(s.me.tyre==='H' && !s.me.ready,'pre-room Hard selection must persist before READY');
+    await request(`/api/rooms/${soloCode}/ready`,{playerId:solo,ready:false,tyre:'I'});
+    s=await state(soloCode,solo); assert(s.me.tyre==='I' && !s.me.ready,'pre-room Intermediate selection must persist before READY');
+    await request(`/api/rooms/${soloCode}/ready`,{playerId:solo,ready:false,tyre:'W'});
+    s=await state(soloCode,solo); assert(s.me.tyre==='W' && !s.me.ready,'pre-room Wet selection must persist before READY');
+    const lobbyWeather=s.weather.name;
     await request(`/api/rooms/${soloCode}/settings`,{playerId:solo,maxLaps:3});
-    await request(`/api/rooms/${soloCode}/ready`,{playerId:solo,ready:true,tyre:'M'});
+    await request(`/api/rooms/${soloCode}/ready`,{playerId:solo,ready:true,tyre:'W'});
     x=await request(`/api/rooms/${soloCode}/start`,{playerId:solo}); assert(x.r.ok,'solo start with bots');
     await sleep(700);
     s=await state(soloCode,solo); assert(s.status==='racing'&&s.phase==='action','solo race did not start');
+    assert(s.me.tyre==='W','Wet pre-room choice must be used at race start');
+    assert(s.weather.name===lobbyWeather,'lobby weather must remain unchanged through lights out');
     assert(s.players.length===6,'solo race must keep six cars');
     const illegalBox=await request(`/api/rooms/${soloCode}/action`,{playerId:solo,action:'box',pitTyre:'S'}); assert(illegalBox.r.status===409,'pit window guard');
     x=await request(`/api/rooms/${soloCode}/action`,{playerId:solo,action:'normal'}); assert(x.r.ok,'solo action');
@@ -71,7 +83,7 @@ function composition(s) { return [s.players.filter(p=>!p.isBot).length, s.player
     s=await state(c2,p1); assert(s.turn>=1,'2-human turn did not resolve');
     assert(s.players.length===6,'2-human race must keep six cars');
 
-    console.log('✅ Race Command FINAL smoke test OK', { autoGrid:'1+5 → 6+0', soloRace:true, twoHumanRace:true, code:c2 });
+    console.log('✅ Race Command 1.2 smoke test OK', { autoGrid:'1+5 → 6+0', soloRace:true, twoHumanRace:true, code:c2 });
     process.exitCode=0;
   } catch(e) {
     console.error('❌ Smoke test failed:',e.message); console.error(output); process.exitCode=1;

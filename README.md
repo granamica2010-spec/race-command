@@ -1,7 +1,22 @@
-# Race Command — Web 1.1
+# Race Command — Web 1.2
 
 Race Command è un gioco strategico di corse multiplayer da browser, pensato per smartphone, tablet e PC.
 
+
+## Novità 1.2 — Meteo e gomme già in pre-room
+
+- La lobby mostra il **meteo effettivo della partenza** e una previsione sintetica.
+- Il meteo visto in lobby resta invariato fino a LIGHTS OUT.
+- In pre-room sono selezionabili tutte e cinque le mescole: **Soft, Medium, Hard, Intermediate e Wet**.
+- Ogni mescola mostra il dado previsto con il meteo di partenza e indica quella più adatta.
+- La scelta viene salvata sul server appena tocchi la gomma, quindi non torna più automaticamente su Medium.
+- I bot scelgono automaticamente le gomme di partenza in base alle condizioni.
+- A ogni rematch viene generato un nuovo scenario meteo pre-gara.
+
+
+## Hotfix 1.1.1
+- Selezione reale della gomma di partenza in lobby: Soft / Medium / Hard vengono salvate immediatamente, prima del READY.
+- La scelta resta corretta anche dopo refresh o riconnessione.
 
 ## Novità 1.1 — Race Awareness
 - Durante ogni duello restano visibili **mappa, posizione di tutte e 6 le auto, classifica, gomme, usura ed ERS**.

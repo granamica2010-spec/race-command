@@ -34,7 +34,7 @@ Il piano gratuito può andare in sleep dopo 15 minuti senza traffico in entrata.
 Apri:
 `https://TUO-URL.onrender.com/api/health`
 
-Deve restituire un JSON con `"ok": true` e versione `1.1.0`.
+Deve restituire un JSON con `"ok": true` e versione `1.2.0`.
 
 Poi prova:
 - telefono A su Wi-Fi → crea stanza;
