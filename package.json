@@ -1,8 +1,8 @@
 {
   "name": "race-command-web",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
-  "description": "Race Command 1.3 - six-car multiplayer racing strategy game with persistent planned pit stops",
+  "description": "Race Command 1.4 - six-car multiplayer racing strategy game with persistent planned pit stops",
   "engines": {
     "node": ">=22"
   },

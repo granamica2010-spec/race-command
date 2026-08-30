@@ -689,7 +689,7 @@ function staticFile(req, res) {
     } else {
       res.writeHead(200, {
         'Content-Type': mime(file),
-        'Cache-Control': path.basename(file) === 'service-worker.js' || path.basename(file) === 'index.html' ? 'no-cache' : 'public, max-age=300',
+        'Cache-Control': ['service-worker.js','index.html','app-1.4.js','styles-1.4.css'].includes(path.basename(file)) ? 'no-cache, no-store, must-revalidate' : 'public, max-age=300',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'same-origin',
         'X-Frame-Options': 'DENY',
@@ -703,7 +703,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const parts = u.pathname.split('/').filter(Boolean);
-    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.3.0' });
+    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.4.0' });
 
     if (req.method === 'POST' && u.pathname === '/api/rooms') {
       const b = await readBody(req);

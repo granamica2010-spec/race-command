@@ -1,4 +1,4 @@
-# Race Command 1.3 — Planned Pit Stops
+# Race Command 1.4 — Planned Pit Stops
 
 - BOX non è più un'azione del turno: è un piano strategico persistente e indipendente.
 - Il giocatore può programmare Soft / Medium / Hard / Intermediate / Wet in qualunque punto del circuito.
@@ -74,3 +74,10 @@
 
 ## Test finale
 `npm run test:all` superato.
+
+
+## 1.4 — Cache-safe pit planning
+- `PROGRAMMA PIT` è separato dalle azioni di ritmo e disponibile in qualunque punto del circuito.
+- Il piano box resta persistente fino alla prossima pit-entry, dove viene eseguito automaticamente.
+- Asset frontend rinominati (`app-1.4.js`, `styles-1.4.css`) e cache disabilitata per evitare che PWA/Render mostrino la UI precedente dopo un deploy.
+- Badge `v1.4` visibile durante la gara e `/api/health` restituisce `version: 1.4.0`, per verificare immediatamente quale build è in esecuzione.
