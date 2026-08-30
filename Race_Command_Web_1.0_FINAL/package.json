@@ -1,0 +1,15 @@
+{
+  "name": "race-command-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Race Command 1.0 Final - six-car multiplayer racing strategy game",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-smoke.js",
+    "test:full": "node test-full-game.js",
+    "test:all": "node test-smoke.js && node test-full-game.js"
+  }
+}
