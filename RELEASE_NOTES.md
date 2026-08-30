@@ -1,3 +1,17 @@
+# Race Command Web 1.5
+
+## Novità principali
+- Richiesta di chiusura sessione avviabile da qualunque giocatore umano.
+- Il richiedente è automaticamente su **OK · ESCO**.
+- Tutti gli altri umani ricevono la votazione sincronizzata.
+- **OK**: il giocatore esce; durante una gara la sua auto continua come bot per mantenere la griglia a 6.
+- **NO**: il giocatore resta nella stessa sessione.
+- Se tutti gli umani votano OK, la stanza viene chiusa definitivamente e non è più accessibile.
+- Timer di 30 secondi; mancata risposta = **NO · RESTO**.
+- Gara, semafori e duelli vengono messi in pausa durante la richiesta e riprendono dal tempo residuo.
+- Migliorata la revoca del controllo quando un umano lascia e la sua auto passa all'IA.
+- Asset 1.5 rinominati per evitare cache di versioni precedenti.
+
 # Race Command 1.4 — Planned Pit Stops
 
 - BOX non è più un'azione del turno: è un piano strategico persistente e indipendente.

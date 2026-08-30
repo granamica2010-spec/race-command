@@ -88,7 +88,7 @@ function composition(s) { return [s.players.filter(p=>!p.isBot).length, s.player
     s=await state(c2,p1); assert(s.turn>=1,'2-human turn did not resolve');
     assert(s.players.length===6,'2-human race must keep six cars');
 
-    console.log('✅ Race Command 1.3 smoke test OK', { autoGrid:'1+5 → 6+0', soloRace:true, twoHumanRace:true, code:c2 });
+    console.log('✅ Race Command 1.5 smoke test OK', { autoGrid:'1+5 → 6+0', soloRace:true, twoHumanRace:true, code:c2 });
     process.exitCode=0;
   } catch(e) {
     console.error('❌ Smoke test failed:',e.message); console.error(output); process.exitCode=1;
