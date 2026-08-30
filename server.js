@@ -13,7 +13,6 @@ const sseClients = new Map();
 const CELLS_PER_LAP = 30;
 const DEFAULT_LAPS = 5;
 const PIT_ENTRY_CELL = 25;
-const PIT_WINDOW_START = 22;
 const TEST_SPEED = process.env.RC_TEST_SPEED === '1';
 const ACTION_SECONDS = TEST_SPEED ? 2 : 20;
 const DUEL_SECONDS = TEST_SPEED ? 2 : 15;
@@ -76,8 +75,13 @@ function raceFinish(room) { return CELLS_PER_LAP * room.maxLaps; }
 function lapCell(p) { return ((Math.floor(p.progress) % CELLS_PER_LAP) + CELLS_PER_LAP) % CELLS_PER_LAP; }
 function lapOf(room, p) { return Math.min(room.maxLaps, Math.floor(p.progress / CELLS_PER_LAP) + 1); }
 function sectorOf(p) { const c = lapCell(p); return c < 10 ? 1 : c < 20 ? 2 : 3; }
-function boxAvailable(p) { const c = lapCell(p); return c >= PIT_WINDOW_START && c < PIT_ENTRY_CELL; }
-function boxDistance(p) { const c = lapCell(p); return c < PIT_ENTRY_CELL ? PIT_ENTRY_CELL - c : (CELLS_PER_LAP - c) + PIT_ENTRY_CELL; }
+function nextPitEntryProgress(progress) {
+  const lapStart = Math.floor(progress / CELLS_PER_LAP) * CELLS_PER_LAP;
+  const cell = ((progress % CELLS_PER_LAP) + CELLS_PER_LAP) % CELLS_PER_LAP;
+  return lapStart + PIT_ENTRY_CELL + (cell > PIT_ENTRY_CELL ? CELLS_PER_LAP : 0);
+}
+function boxDistance(p) { return Math.max(0, Math.ceil(nextPitEntryProgress(p.progress) - p.progress)); }
+function willReachPitEntry(p, move) { return !!p.pitPlanTyre && p.progress + move >= nextPitEntryProgress(p.progress); }
 function standings(room) { return [...room.players].sort((a, b) => b.progress - a.progress); }
 function nextAhead(room, p) { return room.players.filter(x => x.id !== p.id && x.progress > p.progress).sort((a, b) => a.progress - b.progress)[0] || null; }
 function effectiveDie(room, p) {
@@ -170,11 +174,10 @@ function roomView(room, viewerId) {
       ...publicPlayer(room, me),
       rank: myRank,
       effectiveDie: effectiveDie(room, me),
-      boxAvailable: boxAvailable(me),
       boxDistance: boxDistance(me),
+      pitPlanTyre: me.pitPlanTyre,
       drs: drsEligible(room, me),
       selectedAction: me.selectedAction,
-      pendingPitTyre: me.pendingPitTyre,
     } : null,
     duel: room.duel ? {
       attackerId: room.duel.attackerId,
@@ -186,7 +189,7 @@ function roomView(room, viewerId) {
       result: room.duel.result || null,
     } : null,
     raceLog: room.log.slice(-14),
-    rules: { cellsPerLap: CELLS_PER_LAP, maxLaps: room.maxLaps, pitEntryCell: PIT_ENTRY_CELL, pitWindowStart: PIT_WINDOW_START, actionSeconds: ACTION_SECONDS, duelSeconds: DUEL_SECONDS },
+    rules: { cellsPerLap: CELLS_PER_LAP, maxLaps: room.maxLaps, pitEntryCell: PIT_ENTRY_CELL, actionSeconds: ACTION_SECONDS, duelSeconds: DUEL_SECONDS },
   };
 }
 function sendSSE(res, type, data) { res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`); }
@@ -212,7 +215,7 @@ function newPlayer(name, color, isBot = false) {
     ers: 60,
     progress: 0,
     selectedAction: null,
-    pendingPitTyre: null,
+    pitPlanTyre: null,
     isBot,
     disconnectedAt: null,
     stats: { passes: 0, pits: 0, duelW: 0, duelL: 0, ersUsed: 0, bestPace: 0 },
@@ -284,7 +287,7 @@ function resetPlayerForLobby(p) {
   p.ers = 60;
   p.progress = 0;
   p.selectedAction = null;
-  p.pendingPitTyre = null;
+  p.pitPlanTyre = null;
   p.stats = { passes: 0, pits: 0, duelW: 0, duelL: 0, ersUsed: 0, bestPace: 0 };
   p.strategy = [p.tyre];
 }
@@ -362,14 +365,10 @@ function chooseBotAction(room, p) {
   const gap = ahead ? ahead.progress - p.progress : 99;
   const wrongWet = (w === 'WET' || w === 'VERY WET') && ['S', 'M', 'H'].includes(p.tyre);
   const wrongDry = w === 'DRY' && ['I', 'W'].includes(p.tyre);
-  const shouldPit = boxAvailable(p) && (p.wear < 28 || wrongWet || wrongDry);
-  if (shouldPit) {
-    p.selectedAction = 'box';
-    p.pendingPitTyre = bestBotPitTyre(room, p);
-    return;
-  }
-  // Low tyre life: protect the set until reaching the pit window.
-  if (p.wear < 38 && !boxAvailable(p)) { p.selectedAction = 'conserve'; return; }
+  const needsPit = p.wear < 34 || wrongWet || wrongDry;
+  if (needsPit) p.pitPlanTyre = bestBotPitTyre(room, p);
+  // Once a stop is planned, protect the current set until the car reaches the pit entry.
+  if (p.pitPlanTyre && p.wear < 42 && boxDistance(p) > 0) { p.selectedAction = 'conserve'; return; }
   // Close combat: favour ERS or attack when resources and tyres allow it.
   if (gap <= 2.5 && p.wear > 45) {
     if (p.ers >= 45 && Math.random() < .58) { p.selectedAction = 'ers'; return; }
@@ -416,7 +415,7 @@ function prepareRace(room) {
     p.wear = 100;
     p.ers = 60;
     p.selectedAction = null;
-    p.pendingPitTyre = null;
+    p.pitPlanTyre = null;
     p.stats = { passes: 0, pits: 0, duelW: 0, duelL: 0, ersUsed: 0, bestPace: 0 };
     p.strategy = [p.tyre];
   });
@@ -436,7 +435,6 @@ function startTurn(room) {
   room.deadline = now() + ACTION_SECONDS * 1000;
   for (const p of room.players) {
     p.selectedAction = null;
-    p.pendingPitTyre = null;
     if (p.isBot) chooseBotAction(room, p);
   }
   touch(room);
@@ -455,13 +453,6 @@ function actionScore(room, p, action) {
   } else if (action === 'ers') {
     if (p.ers >= 25) { bonus += 3; p.ers -= 25; p.stats.ersUsed += 25; mods.push('ERS +3'); }
     else mods.push('ERS EMPTY');
-  } else if (action === 'box') {
-    if (boxAvailable(p)) {
-      pitted = true;
-      const nt = p.pendingPitTyre && compounds[p.pendingPitTyre] ? p.pendingPitTyre : 'M';
-      p.tyre = nt; p.wear = 100; bonus -= room.safetyTurns > 0 ? 2 : 5; p.stats.pits++; p.strategy.push(nt); mods.push(`PIT ${bonus}`);
-      log(room, `🔧 ${p.name}: pit stop, ${compounds[nt].name}.`);
-    } else mods.push('BOX NON DISPONIBILE');
   } else {
     p.ers = clamp(p.ers + 5);
   }
@@ -509,12 +500,6 @@ function resolveActions(room) {
     } else if (action === 'ers') {
       if (p.ers >= 25) { bonus += 3; p.ers -= 25; p.stats.ersUsed += 25; mods.push('ERS +3'); }
       else mods.push('ERS EMPTY');
-    } else if (action === 'box') {
-      if (boxAvailable(p)) {
-        pitted = true;
-        const nt = p.pendingPitTyre && compounds[p.pendingPitTyre] ? p.pendingPitTyre : 'M';
-        p.tyre = nt; p.wear = 100; bonus -= room.safetyTurns > 0 ? 2 : 5; p.stats.pits++; p.strategy.push(nt); mods.push(`PIT ${bonus}`); log(room, `🔧 ${p.name}: pit stop, ${compounds[nt].name}.`);
-      } else mods.push('BOX NON DISPONIBILE');
     } else p.ers = clamp(p.ers + 5);
     if (!pitted && drsSnapshot.get(p.id)) { bonus += 2; mods.push('DRS +2'); }
     else if (!pitted && sectorOf(p) === 1) {
@@ -523,11 +508,22 @@ function resolveActions(room) {
       if (ahead && ahead.progress - p.progress <= 1.5) { bonus += 1; mods.push('SCIA +1'); }
     }
     let move = Math.max(1, raw + bonus);
-    if (pitted) move = Math.max(move, (PIT_ENTRY_CELL - lapCell(p)) + 1);
-    if (!pitted) degrade(room, p, mult);
     if (room.safetyTurns > 0) move = Math.min(move, 4);
+    const pitEntryProgress = nextPitEntryProgress(p.progress);
+    if (willReachPitEntry(p, move)) {
+      pitted = true;
+      const nt = p.pitPlanTyre;
+      const pitCost = room.safetyTurns > 0 ? 2 : 5;
+      const distanceToEntry = Math.max(0, pitEntryProgress - p.progress);
+      move = Math.max(distanceToEntry + 1, move - pitCost);
+      p.tyre = nt; p.wear = 100; p.stats.pits++; p.strategy.push(nt); p.pitPlanTyre = null;
+      mods.push(`PIT -${pitCost}`);
+      log(room, `🔧 ${p.name}: pit stop, ${compounds[nt].name}.`);
+    } else {
+      degrade(room, p, mult);
+    }
     p.stats.bestPace = Math.max(p.stats.bestPace, move);
-    results[p.id] = { die, raw, bonus, move, mods, pitted, pitTyre: pitted ? p.tyre : null };
+    results[p.id] = { die, raw, bonus, move, mods, pitted, pitTyre: pitted ? p.tyre : null, pitEntryProgress: pitted ? pitEntryProgress : null };
   }
   delete room._drsSnapshot; delete room._nextSnapshot;
   for (const p of room.players) p.progress += results[p.id].move;
@@ -537,7 +533,7 @@ function resolveActions(room) {
     if (b < a) p.stats.passes += a - b;
   }
   const newPositions = Object.fromEntries(room.players.map(p => [p.id, p.progress]));
-  broadcast(room, 'resolution', pid => ({ turn: room.turn, oldPositions, newPositions, results, viewerId: pid, players: room.players.map(p => publicPlayer(room, p)), rules: { cellsPerLap: CELLS_PER_LAP, pitEntryCell: PIT_ENTRY_CELL, pitWindowStart: PIT_WINDOW_START } }));
+  broadcast(room, 'resolution', pid => ({ turn: room.turn, oldPositions, newPositions, results, viewerId: pid, players: room.players.map(p => publicPlayer(room, p)), rules: { cellsPerLap: CELLS_PER_LAP, pitEntryCell: PIT_ENTRY_CELL } }));
   setTimeout(() => afterMovement(room), RESOLUTION_DELAY_MS);
 }
 function weatherStep(room) {
@@ -707,7 +703,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const parts = u.pathname.split('/').filter(Boolean);
-    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.2.0' });
+    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.3.0' });
 
     if (req.method === 'POST' && u.pathname === '/api/rooms') {
       const b = await readBody(req);
@@ -807,15 +803,25 @@ const server = http.createServer(async (req, res) => {
         if (room.status !== 'finished') return json(res, 409, { error: 'La gara non è finita' });
         resetRoomToLobby(room); return json(res, 200, { ok: true });
       }
+      if (req.method === 'POST' && parts[3] === 'pit-plan') {
+        if (room.status !== 'racing') return json(res, 409, { error: 'Il pit si programma durante la gara' });
+        if (b.pitTyre == null || b.pitTyre === '') {
+          p.pitPlanTyre = null;
+          touch(room); broadcast(room);
+          return json(res, 200, { ok: true, pitPlanTyre: null });
+        }
+        if (!compounds[b.pitTyre]) return json(res, 400, { error: 'Mescola non valida' });
+        p.pitPlanTyre = b.pitTyre;
+        touch(room); broadcast(room);
+        return json(res, 200, { ok: true, pitPlanTyre: p.pitPlanTyre, pitEntryIn: boxDistance(p) });
+      }
       if (req.method === 'POST' && parts[3] === 'action') {
         if (room.status !== 'racing' || room.phase !== 'action') return json(res, 409, { error: 'Non è la fase strategia' });
         if (p.selectedAction) return json(res, 409, { error: 'Scelta già bloccata' });
-        const allowed = ['normal', 'attack', 'conserve', 'ers', 'box'];
+        const allowed = ['normal', 'attack', 'conserve', 'ers'];
         if (!allowed.includes(b.action)) return json(res, 400, { error: 'Azione non valida' });
-        if (b.action === 'box' && !boxAvailable(p)) return json(res, 409, { error: `Pit entry fra ${boxDistance(p)} caselle` });
         if (b.action === 'ers' && p.ers < 25) return json(res, 409, { error: `ERS insufficiente: serve 25%, hai ${Math.round(p.ers)}%` });
         p.selectedAction = b.action;
-        if (b.action === 'box' && compounds[b.pitTyre]) p.pendingPitTyre = b.pitTyre;
         touch(room); broadcast(room); maybeResolveActions(room);
         return json(res, 200, { ok: true });
       }

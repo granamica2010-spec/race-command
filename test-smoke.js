@@ -60,10 +60,15 @@ function composition(s) { return [s.players.filter(p=>!p.isBot).length, s.player
     assert(s.me.tyre==='W','Wet pre-room choice must be used at race start');
     assert(s.weather.name===lobbyWeather,'lobby weather must remain unchanged through lights out');
     assert(s.players.length===6,'solo race must keep six cars');
-    const illegalBox=await request(`/api/rooms/${soloCode}/action`,{playerId:solo,action:'box',pitTyre:'S'}); assert(illegalBox.r.status===409,'pit window guard');
-    x=await request(`/api/rooms/${soloCode}/action`,{playerId:solo,action:'normal'}); assert(x.r.ok,'solo action');
+    // Pit can be programmed from anywhere and must persist independently from the turn action.
+    x=await request(`/api/rooms/${soloCode}/pit-plan`,{playerId:solo,pitTyre:'I'}); assert(x.r.ok,'early pit plan');
+    s=await state(soloCode,solo); assert(s.me.pitPlanTyre==='I','pit plan must persist on server');
+    x=await request(`/api/rooms/${soloCode}/action`,{playerId:solo,action:'normal'}); assert(x.r.ok,'solo action while pit is planned');
     await sleep(250);
     s=await state(soloCode,solo); assert(s.turn>=1,'solo turn did not resolve with bots');
+    assert(s.me.pitPlanTyre==='I' || (s.me.stats && s.me.stats.pits>=1),'pit plan must survive turns until the entry is reached');
+    x=await request(`/api/rooms/${soloCode}/pit-plan`,{playerId:solo,pitTyre:null}); assert(x.r.ok,'cancel pit plan');
+    s=await state(soloCode,solo); assert(s.me.pitPlanTyre===null,'pit plan cancellation');
 
     // Two-human internet-style flow: both humans + four bots, secret simultaneous lock.
     x=await request('/api/rooms',{name:'Andre'}); const c2=x.j.code,p1=x.j.playerId;
@@ -83,7 +88,7 @@ function composition(s) { return [s.players.filter(p=>!p.isBot).length, s.player
     s=await state(c2,p1); assert(s.turn>=1,'2-human turn did not resolve');
     assert(s.players.length===6,'2-human race must keep six cars');
 
-    console.log('✅ Race Command 1.2 smoke test OK', { autoGrid:'1+5 → 6+0', soloRace:true, twoHumanRace:true, code:c2 });
+    console.log('✅ Race Command 1.3 smoke test OK', { autoGrid:'1+5 → 6+0', soloRace:true, twoHumanRace:true, code:c2 });
     process.exitCode=0;
   } catch(e) {
     console.error('❌ Smoke test failed:',e.message); console.error(output); process.exitCode=1;

@@ -10,20 +10,25 @@ async function req(path,body,method='POST'){const r=await fetch(BASE+path,{metho
  await req(`/api/rooms/${code}/settings`,{playerId:pid,maxLaps:3});
  await req(`/api/rooms/${code}/ready`,{playerId:pid,ready:true,tyre:'M'});
  await req(`/api/rooms/${code}/start`,{playerId:pid});
- const deadline=Date.now()+30000;let lastTurn=-1,actions=0,duels=0,lastLog=0;
+ const deadline=Date.now()+30000;let lastTurn=-1,actions=0,duels=0,lastLog=0,forcedPlan=false;
  while(Date.now()<deadline){
    const s=(await req(`/api/rooms/${code}/state?playerId=${pid}`,null,'GET')).j;
    if(s.status==='finished'){
      if(s.players.length!==6)throw new Error('finish grid not 6');
-     console.log('✅ Full race completed',{code,turns:s.turn,actions,duels,finish:`P${s.me.rank}`,winner:s.players[0].name});child.kill('SIGTERM');setTimeout(()=>process.exit(0),100);return;
+     if((s.me.stats?.pits||0)<1)throw new Error('planned pit was never executed');
+     console.log('✅ Full race completed',{code,turns:s.turn,actions,duels,pits:s.me.stats.pits,finish:`P${s.me.rank}`,winner:s.players[0].name});child.kill('SIGTERM');setTimeout(()=>process.exit(0),100);return;
    }
    if(s.status==='racing'&&s.phase==='action'&&!s.me.selectedAction){
      const wet = s.weather.name === 'DAMP' ? 'I' : s.weather.name.includes('WET') ? 'W' : null;
-     let action='normal', pitTyre=null;
-     if(s.me.boxAvailable && (s.me.wear<48 || (wet && ['S','M','H'].includes(s.me.tyre)) || (!wet && ['I','W'].includes(s.me.tyre)))) { action='box'; pitTyre=wet||'M'; }
-     else if(s.me.wear<38) action='conserve';
+     if(!forcedPlan){
+       const pr=await req(`/api/rooms/${code}/pit-plan`,{playerId:pid,pitTyre:wet||'S'}); if(!pr.r.ok)throw new Error('pit-plan '+JSON.stringify(pr.j)); forcedPlan=true;
+     } else if((s.me.wear<48 || (wet && ['S','M','H'].includes(s.me.tyre)) || (!wet && ['I','W'].includes(s.me.tyre))) && !s.me.pitPlanTyre && (s.me.stats?.pits||0)>0){
+       const pr=await req(`/api/rooms/${code}/pit-plan`,{playerId:pid,pitTyre:wet||'M'}); if(!pr.r.ok)throw new Error('pit-replan '+JSON.stringify(pr.j));
+     }
+     let action='normal';
+     if(s.me.wear<38) action='conserve';
      else if(s.me.ers>=70) action='ers';
-     const r=await req(`/api/rooms/${code}/action`,{playerId:pid,action,pitTyre}); if(!r.r.ok)throw new Error('action '+JSON.stringify(r.j));actions++;lastTurn=s.turn;
+     const r=await req(`/api/rooms/${code}/action`,{playerId:pid,action}); if(!r.r.ok)throw new Error('action '+JSON.stringify(r.j));actions++;lastTurn=s.turn;
    }
    if(s.status==='racing'&&s.phase==='duel'&&s.duel&&[s.duel.attackerId,s.duel.defenderId].includes(pid)&&!s.duel.myChoice){
      const role=s.duel.attackerId===pid?'attack':'defend';

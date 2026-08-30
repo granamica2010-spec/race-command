@@ -8,7 +8,6 @@ let source = null;
 let selectedTyre = 'M';
 let selectedDuel = null;
 let pendingAction = null;
-let pendingPitTyre = null;
 let pendingTurn = null;
 let animFrame = null;
 let resolutionData = null;
@@ -59,7 +58,6 @@ function wipeSession() {
   source = null;
   state = null;
   pendingAction = null;
-  pendingPitTyre = null;
   pendingTurn = null;
   renderHome();
 }
@@ -77,7 +75,7 @@ function inviteCodeFromUrl() {
 function renderHome() {
   const invite = inviteCodeFromUrl();
   const savedName = localStorage.getItem('rc_name') || '';
-  app.innerHTML = `<div class="home"><section class="homeCard"><div class="brand"><b>RACE</b> COMMAND · WEB 1.2</div><h1 class="screenTitle">La gara, sui vostri telefoni.</h1><p class="subtitle">Stanza condivisa, strategie segrete simultanee, meteo, gomme, pit stop e duelli reali tra giocatori.</p><div class="field"><label>Nickname</label><input id="name" maxlength="18" placeholder="Andre" autocomplete="nickname" value="${escapeHtml(savedName)}"></div><div class="homeActions"><button class="btn primary" id="create">CREA PARTITA</button><button class="btn" id="joinToggle">ENTRA CON CODICE</button></div><div id="joinBox" ${invite ? '' : 'hidden'}><div class="field"><label>Codice stanza</label><input id="roomCode" maxlength="4" placeholder="F7K2" autocapitalize="characters" value="${escapeHtml(invite)}"></div><button class="btn green" id="join" style="width:100%;margin-top:10px">ENTRA</button></div><div class="homeNote">Nessun account richiesto. Online potete giocare anche da Wi-Fi, 5G o città diverse usando lo stesso link e codice stanza.</div></section></div>`;
+  app.innerHTML = `<div class="home"><section class="homeCard"><div class="brand"><b>RACE</b> COMMAND · WEB 1.3</div><h1 class="screenTitle">La gara, sui vostri telefoni.</h1><p class="subtitle">Stanza condivisa, strategie segrete simultanee, meteo, gomme, pit stop e duelli reali tra giocatori.</p><div class="field"><label>Nickname</label><input id="name" maxlength="18" placeholder="Andre" autocomplete="nickname" value="${escapeHtml(savedName)}"></div><div class="homeActions"><button class="btn primary" id="create">CREA PARTITA</button><button class="btn" id="joinToggle">ENTRA CON CODICE</button></div><div id="joinBox" ${invite ? '' : 'hidden'}><div class="field"><label>Codice stanza</label><input id="roomCode" maxlength="4" placeholder="F7K2" autocapitalize="characters" value="${escapeHtml(invite)}"></div><button class="btn green" id="join" style="width:100%;margin-top:10px">ENTRA</button></div><div class="homeNote">Nessun account richiesto. Online potete giocare anche da Wi-Fi, 5G o città diverse usando lo stesso link e codice stanza.</div></section></div>`;
   const nameEl = document.getElementById('name');
   const rememberName = () => localStorage.setItem('rc_name', nameEl.value.trim().slice(0, 18));
   document.getElementById('create').onclick = async () => {
@@ -108,7 +106,7 @@ function connect() {
   source.addEventListener('state', e => {
     state = JSON.parse(e.data);
     setNetwork(true);
-    if (state.phase === 'action' && pendingTurn !== state.turn) { pendingTurn = state.turn; pendingAction = null; pendingPitTyre = null; }
+    if (state.phase === 'action' && pendingTurn !== state.turn) { pendingTurn = state.turn; pendingAction = null; }
     if (state.me?.selectedAction) pendingAction = state.me.selectedAction;
     render();
   });
@@ -224,7 +222,7 @@ function renderStarting() {
   update(); window.__rcLights = setInterval(update, 90);
 }
 
-function sectorText(s) { return s === 1 ? ['SETTORE 1 · SPEED', 'DRS e scia sono particolarmente efficaci.'] : s === 2 ? ['SETTORE 2 · TECHNICAL', 'ATTACK consuma più gomma e aumenta il rischio.'] : ['SETTORE 3 · STRATEGY', 'Pit-entry disponibile prima della linea box.']; }
+function sectorText(s) { return s === 1 ? ['SETTORE 1 · SPEED', 'DRS e scia sono particolarmente efficaci.'] : s === 2 ? ['SETTORE 2 · TECHNICAL', 'ATTACK consuma più gomma e aumenta il rischio.'] : ['SETTORE 3 · STRATEGY', 'Se hai programmato il pit, entrerai automaticamente raggiungendo la pit-entry.']; }
 function forecast() {
   const i = state.weatherIndex, icons = ['☀️', '🌦️', '🌧️', '⛈️'], rain = [5, 42, 76, 95];
   return [0, 1, 2, 3].map(x => { const wi = Math.min(3, i + (x >= 2 ? 1 : 0)); return `<div><span>${x ? `+${x * 10}m` : 'ORA'}</span><b>${icons[wi]}</b><span>${Math.min(95, rain[wi] + x * 6)}%</span></div>`; }).join('');
@@ -251,9 +249,12 @@ function renderRace() {
   if (!state || state.status !== 'racing') return;
   if (state.phase === 'duel' || state.phase === 'duel_result') return renderBattle();
   const me = state.me, [secName, secHint] = sectorText(me.sector), locked = !!me.selectedAction;
-  const boxTitle = me.boxAvailable ? 'BOX THIS LAP' : `PIT ENTRY FRA ${me.boxDistance}`;
-  const boxDesc = me.boxAvailable ? (pendingPitTyre ? `${names[pendingPitTyre]} selezionate` : 'scegli le nuove gomme · perdita ~5') : 'devi arrivare prima della pit-entry';
-  app.innerHTML = `<div class="app"><div class="topbar"><div><div class="brand"><b>RACE</b> COMMAND · ${state.code}</div><h2 style="margin-top:3px">Catalunya · GP</h2></div><div class="badges"><span class="badge">Giro ${me.lap} / ${state.rules.maxLaps}</span><span class="badge">${state.weather.icon} ${state.weather.name}</span><span class="badge">${state.safetyTurns ? `🟡 SC · ${state.safetyTurns} TURNI` : '🟢 GREEN'}</span></div></div><div class="raceLayout"><section class="panel"><div class="stats"><div class="card"><div class="ey">Posizione</div><div class="big">${me.rank}°</div><div class="small">${me.rank === 1 ? 'Leader' : `+${(state.players[me.rank-2].progress-me.progress).toFixed(1)} dalla P${me.rank-1}`}</div></div><div class="card"><div class="ey">Avanzamento</div><div class="big">${Math.floor(me.progress)}</div><div class="small">caselle totali</div></div></div><div class="card" style="margin-top:8px"><div class="row"><div class="tyreLine"><span class="ring" style="border-color:${colors[me.tyre]};margin:0">${me.tyre}</span><div><div class="ey">${names[me.tyre]}</div><b>Ritmo D${me.effectiveDie}${state.weather.name !== 'DRY' && ['S', 'M', 'H'].includes(me.tyre) ? ' ⚠️' : ''}</b></div></div><div style="text-align:right"><div class="ey">Usura</div><b>${me.wear}%</b></div></div><div class="bar" style="margin-top:8px"><i style="width:${me.wear}%"></i></div></div><div class="card" style="margin-top:8px"><div class="row"><div class="ey">ERS</div><b>${me.ers}%</b></div><div class="bar" style="margin-top:7px"><i style="width:${me.ers}%"></i></div></div><div class="card" style="margin-top:8px"><div class="row"><div><div class="ey">Zona pista</div><b>${secName}</b><div class="small">${secHint}</div></div><span class="badge ${me.drs ? 'drsOn' : ''}">${me.drs ? 'DRS ON' : 'DRS OFF'}</span></div></div><div class="card" style="margin-top:8px"><div class="row"><div><div class="ey">Meteo</div><b style="font-size:20px">${state.weather.icon} ${state.weather.name}</b></div><span class="small">${state.weather.rain}% pioggia</span></div><div class="forecast">${forecast()}</div></div><div class="card" style="margin-top:8px"><div class="row"><div><div class="ey">Fase simultanea</div><b>${locked ? 'SCELTA BLOCCATA 🔒' : state.phase === 'resolving' ? 'RISOLUZIONE…' : 'SCEGLI E CONFERMA'}</b></div><div class="big" id="countdown" style="font-size:27px">${secondsLeft()}</div></div><div class="actionGrid">${actionButton('normal', 'NORMALE', 'ritmo standard', locked || state.phase !== 'action')}${actionButton('attack', 'ATTACK', '+2 · più usura', locked || state.phase !== 'action')}${actionButton('conserve', 'CONSERVE', '-1 · salva gomme', locked || state.phase !== 'action')}${actionButton('ers', 'ERS', me.ers >= 25 ? '+3 · costa 25%' : `serve 25% · hai ${me.ers}%`, locked || state.phase !== 'action' || me.ers < 25)}${actionButton('box', boxTitle, boxDesc, locked || state.phase !== 'action' || !me.boxAvailable, true)}</div>${!locked && state.phase === 'action' ? `<button class="btn primary confirmAction" id="confirmAction" ${!pendingAction ? 'disabled' : ''}>${pendingAction ? `CONFERMA ${pendingAction === 'box' ? 'BOX' : pendingAction.toUpperCase()}` : 'SCEGLI UN’AZIONE'}</button>` : ''}<div class="small lockCount">${state.lockedCount} / ${state.totalPlayers} piloti hanno bloccato la scelta</div><div class="resolution ${resolutionData ? 'show' : ''}" id="resolution"></div></div></section><section class="panel"><div class="trackWrap">${trackSvg()}</div><div class="rank">${state.players.map((p, i) => `<div class="rankRow ${p.id === me.id ? 'me' : ''}"><b>${i + 1}</b><i class="dot ${p.connected ? 'online' : ''}" style="background:${p.color}"></i><div><b>${escapeHtml(p.name)}</b><div class="small">${names[p.tyre]} · ${p.wear}% · ERS ${p.ers}%${p.connected ? '' : p.isBot ? '' : ' · OFFLINE'}</div></div><span class="gapChip" title="Distacco dal leader">${gapToLeader(p, i)}</span></div>`).join('')}</div><div style="margin-top:10px"><div class="ey">Race Control</div><div class="feed">${state.raceLog.slice().reverse().map(x => `<div>${escapeHtml(x)}</div>`).join('')}</div></div></section></div></div>`;
+  const plan = me.pitPlanTyre;
+  const pitDistanceText = me.boxDistance === 0 ? 'PIT ENTRY ORA' : `PIT ENTRY FRA ${me.boxDistance}`;
+  const pitStatus = plan
+    ? `<div><div class="ey">Pit strategy</div><b>BOX PROGRAMMATO · ${names[plan]}</b><div class="small">${pitDistanceText} · entrerai automaticamente appena la raggiungi</div></div>`
+    : `<div><div class="ey">Pit strategy</div><b>${pitDistanceText}</b><div class="small">Puoi programmare il prossimo cambio gomme in qualsiasi momento</div></div>`;
+  app.innerHTML = `<div class="app"><div class="topbar"><div><div class="brand"><b>RACE</b> COMMAND · ${state.code}</div><h2 style="margin-top:3px">Catalunya · GP</h2></div><div class="badges"><span class="badge">Giro ${me.lap} / ${state.rules.maxLaps}</span><span class="badge">${state.weather.icon} ${state.weather.name}</span><span class="badge">${state.safetyTurns ? `🟡 SC · ${state.safetyTurns} TURNI` : '🟢 GREEN'}</span></div></div><div class="raceLayout"><section class="panel"><div class="stats"><div class="card"><div class="ey">Posizione</div><div class="big">${me.rank}°</div><div class="small">${me.rank === 1 ? 'Leader' : `+${(state.players[me.rank-2].progress-me.progress).toFixed(1)} dalla P${me.rank-1}`}</div></div><div class="card"><div class="ey">Avanzamento</div><div class="big">${Math.floor(me.progress)}</div><div class="small">caselle totali</div></div></div><div class="card" style="margin-top:8px"><div class="row"><div class="tyreLine"><span class="ring" style="border-color:${colors[me.tyre]};margin:0">${me.tyre}</span><div><div class="ey">${names[me.tyre]}</div><b>Ritmo D${me.effectiveDie}${state.weather.name !== 'DRY' && ['S', 'M', 'H'].includes(me.tyre) ? ' ⚠️' : ''}</b></div></div><div style="text-align:right"><div class="ey">Usura</div><b>${me.wear}%</b></div></div><div class="bar" style="margin-top:8px"><i style="width:${me.wear}%"></i></div></div><div class="card" style="margin-top:8px"><div class="row"><div class="ey">ERS</div><b>${me.ers}%</b></div><div class="bar" style="margin-top:7px"><i style="width:${me.ers}%"></i></div></div><div class="card sectorCard"><div class="row"><div><div class="ey">Zona pista</div><b>${secName}</b><div class="small">${secHint}</div></div><span class="badge ${me.drs ? 'drsOn' : ''}">${me.drs ? 'DRS ON' : 'DRS OFF'}</span></div></div><div class="card" style="margin-top:8px"><div class="row"><div><div class="ey">Meteo</div><b style="font-size:20px">${state.weather.icon} ${state.weather.name}</b></div><span class="small">${state.weather.rain}% pioggia</span></div><div class="forecast">${forecast()}</div></div><div class="card pitPlanCard" style="margin-top:8px"><div class="row" style="align-items:flex-start;flex-wrap:wrap">${pitStatus}<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ${plan ? '' : 'primary'}" id="pitPlanBtn">${plan ? 'CAMBIA PIANO' : 'PROGRAMMA PIT'}</button>${plan ? '<button class="btn" id="cancelPitPlan">ANNULLA</button>' : ''}</div></div></div><div class="card" style="margin-top:8px"><div class="row"><div><div class="ey">Fase simultanea</div><b>${locked ? 'SCELTA BLOCCATA 🔒' : state.phase === 'resolving' ? 'RISOLUZIONE…' : 'SCEGLI E CONFERMA'}</b></div><div class="big" id="countdown" style="font-size:27px">${secondsLeft()}</div></div><div class="actionGrid">${actionButton('normal', 'NORMALE', 'ritmo standard', locked || state.phase !== 'action')}${actionButton('attack', 'ATTACK', '+2 · più usura', locked || state.phase !== 'action')}${actionButton('conserve', 'CONSERVE', '-1 · salva gomme', locked || state.phase !== 'action')}${actionButton('ers', 'ERS', me.ers >= 25 ? '+3 · costa 25%' : `serve 25% · hai ${me.ers}%`, locked || state.phase !== 'action' || me.ers < 25)}</div>${!locked && state.phase === 'action' ? `<button class="btn primary confirmAction" id="confirmAction" ${!pendingAction ? 'disabled' : ''}>${pendingAction ? `CONFERMA ${pendingAction.toUpperCase()}` : 'SCEGLI UN’AZIONE'}</button>` : ''}<div class="small lockCount">${state.lockedCount} / ${state.totalPlayers} piloti hanno bloccato la scelta</div><div class="resolution ${resolutionData ? 'show' : ''}" id="resolution"></div></div></section><section class="panel"><div class="trackWrap">${trackSvg()}</div><div class="rank">${state.players.map((p, i) => `<div class="rankRow ${p.id === me.id ? 'me' : ''}"><b>${i + 1}</b><i class="dot ${p.connected ? 'online' : ''}" style="background:${p.color}"></i><div><b>${escapeHtml(p.name)}</b><div class="small">${names[p.tyre]} · ${p.wear}% · ERS ${p.ers}%${p.connected ? '' : p.isBot ? '' : ' · OFFLINE'}</div></div><span class="gapChip" title="Distacco dal leader">${gapToLeader(p, i)}</span></div>`).join('')}</div><div style="margin-top:10px"><div class="ey">Race Control</div><div class="feed">${state.raceLog.slice().reverse().map(x => `<div>${escapeHtml(x)}</div>`).join('')}</div></div></section></div></div>`;
   positionCars(); bindRaceActions(); startCountdown(); if (resolutionData) renderResolutionBox(resolutionData);
 }
 function startCountdown() {
@@ -263,29 +264,38 @@ function startCountdown() {
 }
 function bindRaceActions() {
   document.querySelectorAll('[data-action]').forEach(b => b.onclick = () => {
-    const action = b.dataset.action;
-    if (action === 'box') return openPit();
-    pendingAction = action; pendingPitTyre = null; pendingTurn = state.turn; renderRace();
+    pendingAction = b.dataset.action; pendingTurn = state.turn; renderRace();
   });
   const confirm = document.getElementById('confirmAction');
-  if (confirm) confirm.onclick = () => submitAction(pendingAction, pendingPitTyre);
+  if (confirm) confirm.onclick = () => submitAction(pendingAction);
+  const pitPlanBtn = document.getElementById('pitPlanBtn');
+  if (pitPlanBtn) pitPlanBtn.onclick = openPit;
+  const cancelPit = document.getElementById('cancelPitPlan');
+  if (cancelPit) cancelPit.onclick = () => setPitPlan(null);
 }
-async function submitAction(action, pitTyre) {
+async function submitAction(action) {
   if (!action) return;
   try {
-    await post(`/api/rooms/${state.code}/action`, { playerId: state.me.id, action, pitTyre });
+    await post(`/api/rooms/${state.code}/action`, { playerId: state.me.id, action });
     toast('Scelta bloccata 🔒');
   } catch (e) { toast(e.message); }
 }
+async function setPitPlan(pitTyre) {
+  try {
+    await post(`/api/rooms/${state.code}/pit-plan`, { playerId: state.me.id, pitTyre });
+    toast(pitTyre ? `🔧 Pit programmato: ${names[pitTyre]}` : 'Pit annullato');
+  } catch (e) { toast(e.message); }
+}
 function openPit() {
-  if (!state.me.boxAvailable) return toast(`Pit entry fra ${state.me.boxDistance}`);
-  selectedTyre = pendingPitTyre || (state.weather.name === 'DAMP' ? 'I' : state.weather.name.includes('WET') ? 'W' : 'S');
+  selectedTyre = state.me.pitPlanTyre || (state.weather.name === 'DAMP' ? 'I' : state.weather.name.includes('WET') ? 'W' : 'S');
   const overlay = document.createElement('div'); overlay.className = 'overlay';
   const draw = () => {
-    overlay.innerHTML = `<div class="modal"><div class="ey">Pit strategy</div><h2>Scegli le nuove gomme</h2><p class="subtitle">Sei nella finestra prima della pit-entry: il box può essere programmato adesso.</p><div class="tyres" id="pitTyres">${tyreButtons(['S', 'M', 'H', 'I', 'W'], false, true)}</div><div class="pitAdvice">Pista attuale: <b>${state.weather.icon} ${state.weather.name}</b></div><div class="modalBtns"><button class="btn" id="cancelPit">ANNULLA</button><button class="btn primary" id="confirmPit">SELEZIONA ${names[selectedTyre]}</button></div></div>`;
+    const ideal = gripByWeather[state.weather.name];
+    overlay.innerHTML = `<div class="modal"><div class="ey">Pit strategy</div><h2>Programma il prossimo pit stop</h2><p class="subtitle">Puoi deciderlo in qualsiasi punto del circuito. Continuerai a scegliere il ritmo ogni turno e la monoposto entrerà automaticamente quando il movimento raggiunge o supera la pit-entry.</p><div class="tyres" id="pitTyres">${tyreButtons(['S', 'M', 'H', 'I', 'W'], false, true)}</div><div class="pitAdvice">Pista: <b>${state.weather.icon} ${state.weather.name}</b> · ingresso box fra <b>${state.me.boxDistance}</b> caselle · ${names[selectedTyre]} = <b>D${ideal[selectedTyre]}</b></div><div class="modalBtns"><button class="btn" id="cancelPit">CHIUDI</button>${state.me.pitPlanTyre ? '<button class="btn" id="removePlan">ANNULLA PIT</button>' : ''}<button class="btn primary" id="confirmPit">PROGRAMMA ${names[selectedTyre]}</button></div></div>`;
     overlay.querySelectorAll('[data-tyre]').forEach(b => b.onclick = () => { selectedTyre = b.dataset.tyre; draw(); });
     overlay.querySelector('#cancelPit').onclick = () => overlay.remove();
-    overlay.querySelector('#confirmPit').onclick = () => { pendingAction = 'box'; pendingPitTyre = selectedTyre; pendingTurn = state.turn; overlay.remove(); renderRace(); };
+    const remove = overlay.querySelector('#removePlan'); if (remove) remove.onclick = async () => { await setPitPlan(null); overlay.remove(); };
+    overlay.querySelector('#confirmPit').onclick = async () => { await setPitPlan(selectedTyre); overlay.remove(); };
   };
   document.body.appendChild(overlay); draw();
 }
@@ -353,12 +363,15 @@ function renderBattle() {
   const opp = state.players.find(p => p.id === oppId);
   const locked = !!d?.myChoice, attackerRank = rankOfPlayer(d?.attackerId), defenderRank = rankOfPlayer(d?.defenderId);
   const duelGap = d ? Math.abs((state.players.find(p=>p.id===d.attackerId)?.progress || 0) - (state.players.find(p=>p.id===d.defenderId)?.progress || 0)).toFixed(1) : '—';
-  const context = `<aside class="battleContext"><div class="card contextSummary"><div class="ey">Situazione prima della scelta</div><div class="contextVs"><div><b>${escapeHtml(d?.attackerName || '')}</b><span>P${attackerRank || '—'} · ATTACCA</span></div><strong>${duelGap}<small> cas.</small></strong><div><b>${escapeHtml(d?.defenderName || '')}</b><span>P${defenderRank || '—'} · DIFENDE</span></div></div></div><div class="trackWrap miniTrack">${trackSvg()}</div><div class="ey" style="margin-top:9px">Classifica live</div>${compactStandings([d?.attackerId,d?.defenderId])}</aside>`;
+  const pitMini = `<div class="card" style="margin-top:9px"><div class="row" style="align-items:flex-start"><div><div class="ey">Pit strategy</div><b>${me.pitPlanTyre ? `BOX PROGRAMMATO · ${names[me.pitPlanTyre]}` : `PIT ENTRY FRA ${me.boxDistance}`}</b><div class="small">${me.pitPlanTyre ? 'Entrata automatica alla prossima pit-entry' : 'Puoi programmare il cambio anche durante il duello'}</div></div><div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn" id="battlePitPlan">${me.pitPlanTyre ? 'CAMBIA' : 'PROGRAMMA'}</button>${me.pitPlanTyre ? '<button class="btn" id="battleCancelPit">ANNULLA</button>' : ''}</div></div></div>`;
+  const context = `<aside class="battleContext"><div class="card contextSummary"><div class="ey">Situazione prima della scelta</div><div class="contextVs"><div><b>${escapeHtml(d?.attackerName || '')}</b><span>P${attackerRank || '—'} · ATTACCA</span></div><strong>${duelGap}<small> cas.</small></strong><div><b>${escapeHtml(d?.defenderName || '')}</b><span>P${defenderRank || '—'} · DIFENDE</span></div></div></div><div class="trackWrap miniTrack">${trackSvg()}</div>${pitMini}<div class="ey" style="margin-top:9px">Classifica live</div>${compactStandings([d?.attackerId,d?.defenderId])}</aside>`;
   const spectator = `<section class="panel battle"><div class="waiting"><div class="battleIcon">⚔️</div><div class="screenTitle" style="font-size:28px">Duello in corso</div><p class="subtitle">${escapeHtml(d?.attackerName || '')} sta attaccando ${escapeHtml(d?.defenderName || '')}. Puoi continuare a vedere mappa e classifica mentre aspetti.</p><div class="spectatorBattle"><b>${escapeHtml(d?.attackerName || '')}</b><span>VS</span><b>${escapeHtml(d?.defenderName || '')}</b></div></div></section>`;
   const options = involved ? duelOptions(role, me) : [];
   const battle = involved ? `<section class="panel battle"><div class="battleTop"><div><div class="ey">${role === 'attack' ? 'Stai attaccando' : 'Stai difendendo'}</div><h2>YOU vs ${escapeHtml(opp?.name || '')}</h2><div class="duelResources"><span>P${me.rank} · ${names[me.tyre]} ${me.wear}%</span><span>ERS ${me.ers}%</span><span>Rivale P${rankOfPlayer(oppId)} · ${names[opp?.tyre] || ''} ${opp?.wear ?? '—'}%</span></div></div><span class="role">${role === 'attack' ? 'ATTACCANTE' : 'DIFENSORE'}</span></div><div class="arena"><div class="row"><b>YOU</b><b>${escapeHtml(opp?.name || '')}</b></div><div class="lane"><div class="battleCar you" id="battleYou">YOU</div><div class="battleCar rival" id="battleRival">R</div></div><div class="reveal"><div class="choice" id="myReveal">${duelResult ? duelLabels[role === 'attack' ? duelResult.attackerChoice : duelResult.defenderChoice] : (locked ? 'LOCKED 🔒' : '?')}</div><b>VS</b><div class="choice" id="oppReveal">${duelResult ? duelLabels[role === 'attack' ? duelResult.defenderChoice : duelResult.attackerChoice] : '?'}</div></div><div class="big" style="text-align:center;margin-top:10px" id="duelScore">${duelResult ? (role === 'attack' ? `${duelResult.attackerScore} — ${duelResult.defenderScore}` : `${duelResult.defenderScore} — ${duelResult.attackerScore}`) : 'Scegli la mossa'}</div></div>${state.phase === 'duel' && !locked ? `<div class="duelGrid">${options.map(([k,t,s,disabled]) => `<button class="duelBtn ${selectedDuel === k ? 'active' : ''}" data-duel="${k}" ${disabled ? 'disabled' : ''}>${t}<small>${disabled ? `${s} · NON DISPONIBILE` : s}</small></button>`).join('')}</div><div class="duelExplain">Il punteggio è <b>D6 + bonus</b>. In caso di parità, chi difende mantiene la posizione.</div><button class="btn primary" id="duelLock" style="width:100%;margin-top:10px" ${!selectedDuel || options.find(x=>x[0]===selectedDuel)?.[3] ? 'disabled' : ''}>LOCK IN</button>` : `<div class="waiting compact"><b>${state.phase === 'duel_result' ? 'REVEAL!' : 'Scelta bloccata. Attendo l’avversario…'}</b></div>`}</section>` : spectator;
   app.innerHTML = `<div class="app"><div class="topbar"><div><div class="brand"><b>RACE</b> COMMAND · ${state.code}</div><h2 style="margin-top:3px">BATTLE FOR POSITION</h2></div><div class="badges"><span class="badge">Giro ${me.lap} / ${state.rules.maxLaps}</span><span class="badge">${state.weather.icon} ${state.weather.name}</span><span class="badge">⏱ <span id="duelCountdown">${secondsLeft()}</span>s</span><span class="badge">${d?.locked || 0} / 2 LOCKED</span></div></div><div class="battleLayout">${battle}${context}</div></div>`;
   positionCars(); startDuelCountdown();
+  const battlePit = document.getElementById('battlePitPlan'); if (battlePit) battlePit.onclick = openPit;
+  const battleCancelPit = document.getElementById('battleCancelPit'); if (battleCancelPit) battleCancelPit.onclick = () => setPitPlan(null);
   if (involved && state.phase === 'duel' && !locked) {
     document.querySelectorAll('[data-duel]:not(:disabled)').forEach(b => b.onclick = () => { selectedDuel = b.dataset.duel; document.querySelectorAll('[data-duel]').forEach(x => x.classList.toggle('active', x === b)); const lockBtn = document.getElementById('duelLock'); if (lockBtn) lockBtn.disabled = false; });
     const lock = document.getElementById('duelLock'); if (lock) lock.onclick = async () => { try { await post(`/api/rooms/${state.code}/duel`, { playerId: me.id, choice: selectedDuel }); selectedDuel = null; } catch (e) { toast(e.message); } };

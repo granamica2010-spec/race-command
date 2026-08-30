@@ -1,7 +1,17 @@
-# Race Command — Web 1.2
+# Race Command — Web 1.3
 
 Race Command è un gioco strategico di corse multiplayer da browser, pensato per smartphone, tablet e PC.
 
+
+## Novità 1.3 — Pit stop programmabile
+
+- Il pit stop si può **programmare in qualsiasi punto del circuito**.
+- Il piano box è separato dalla scelta del turno: puoi avere, ad esempio, `BOX PROGRAMMATO · INTER` e scegliere comunque NORMAL / ATTACK / CONSERVE / ERS.
+- La monoposto entra automaticamente quando il movimento del turno **raggiunge o supera la pit-entry**, quindi un tiro alto non può più farti saltare involontariamente l'ingresso.
+- Il piano resta memorizzato per tutti i turni necessari e sopravvive a refresh/riconnessione perché vive sul server.
+- Prima di arrivare alla pit-entry puoi cambiare la mescola programmata oppure annullare completamente la sosta.
+- La strategia box resta gestibile anche durante un duello.
+- I bot usano la stessa logica: possono decidere in anticipo la sosta e proteggere le gomme fino all'ingresso.
 
 ## Novità 1.2 — Meteo e gomme già in pre-room
 
@@ -54,7 +64,8 @@ Flusso:
 ## Gameplay incluso
 - 3 / 5 / 8 / 10 giri
 - scelte simultanee segrete
-- NORMAL / ATTACK / CONSERVE / ERS / BOX
+- NORMAL / ATTACK / CONSERVE / ERS come azioni simultanee
+- pit stop programmabile separatamente in qualsiasi momento
 - Soft / Medium / Hard / Intermediate / Wet
 - usura gomme e ritmo/dado dipendente dalla mescola
 - meteo dinamico
@@ -63,7 +74,7 @@ Flusso:
 - pit-entry e pit lane reali
 - Safety Car
 - duelli attaccante/difensore con scelte segrete e reveal
-- bot strategici che valutano meteo, usura, ERS, distacco, settore e pit window
+- bot strategici che valutano meteo, usura, ERS, distacco, settore e momento della prossima sosta
 - classifica e Race Control
 - schermata finale con statistiche
 - rematch
@@ -82,7 +93,7 @@ Flusso:
 - sostituzione automatica bot/umani;
 - gara 1 umano + 5 bot;
 - gara 2 umani + 4 bot;
-- protezione della pit window;
+- programmazione anticipata del pit e ingresso automatico quando viene raggiunta la pit-entry;
 - segretezza delle scelte simultanee;
 - gara completa fino alla bandiera a scacchi con duelli.
 

@@ -1,3 +1,18 @@
+# Race Command 1.3 — Planned Pit Stops
+
+- BOX non è più un'azione del turno: è un piano strategico persistente e indipendente.
+- Il giocatore può programmare Soft / Medium / Hard / Intermediate / Wet in qualunque punto del circuito.
+- NORMAL / ATTACK / CONSERVE / ERS restano selezionabili normalmente anche con un pit già programmato.
+- Quando il movimento raggiunge o supera la pit-entry, il server intercetta automaticamente la monoposto ed esegue la sosta nello stesso turno.
+- Un tiro alto non può più far saltare la pit-entry e costringere ad aspettare un altro giro.
+- Il piano box può essere cambiato o annullato prima dell'ingresso.
+- Il piano è server-side, quindi resta valido dopo refresh e riconnessioni.
+- Pit strategy disponibile anche durante la schermata duello.
+- IA bot aggiornata per pianificare le soste in anticipo.
+- Nuovi test automatici verificano persistenza del piano e almeno un pit automatico in una gara completa.
+
+---
+
 # Race Command 1.2 — Pre-race Weather & Full Tyre Choice
 
 - Meteo di partenza visibile direttamente nella lobby.
