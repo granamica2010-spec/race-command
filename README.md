@@ -1,134 +1,171 @@
-# Race Command — Web 1.6
+# Race Command Web 1.7.3
 
-Race Command è un gioco strategico di corse multiplayer da browser, pensato per smartphone, tablet e PC.
+Race Command è un party strategy game di corse multiplayer da browser, pensato soprattutto per smartphone ma giocabile anche da tablet e PC.
 
+## Novità 1.7 — Game Feel Update
 
-## Novità 1.6 — Uscita sessione realmente live
+- **Lancio del dado animato** a ogni turno: il server decide sempre il risultato, il client anima soltanto il valore ufficiale ricevuto.
+- Sequenza visiva del turno: **DADO → BONUS → MOVIMENTO**.
+- Reveal separato di dado base, modificatori (ATTACK / ERS / DRS / SCIA / PIT) e **PACE totale**.
+- Movimento auto più rapido e fluido, con evidenziazione delle auto che guadagnano posizioni.
+- Banner live per **sorpasso, posizione persa, pit stop e DRS**.
+- Effetti meteo animati sulla pista per DAMP / WET / VERY WET.
+- Zona DRS più evidente quando è realmente disponibile.
+- Duelli migliorati: entrambi i piloti mostrano **D6 grezzo + bonus + punteggio totale**, oltre alle scelte già presenti.
+- Effetti audio sintetizzati dal browser, **opzionali** tramite pulsante `FX` (nessun file audio esterno).
+- Rispetto di `prefers-reduced-motion` per chi disabilita le animazioni di sistema.
+- Nuovo `AGGIORNA_GITHUB.bat`: dopo la prima configurazione aggiorna GitHub e quindi Render senza dover caricare a mano tutti i file.
 
-- Quando una sessione viene chiusa, il browser torna automaticamente alla home: **nessun F5 necessario**.
-- Chi accetta di uscire in una votazione viene espulso live appena la votazione si conclude.
-- Se tutti accettano, tutti i dispositivi ricevono immediatamente la chiusura definitiva.
-- La risposta HTTP al click fa anche da fallback: perfino se un proxy perdesse l’ultimo evento realtime, il dispositivo che ha appena votato/eseguito STOP esce comunque subito.
-- Il server lascia un brevissimo margine di flush all’evento terminale prima di chiudere lo stream, utile dietro proxy come Render.
-- Se rimane un solo umano, STOP chiude direttamente la stanza senza creare una votazione fittizia.
+## Aggiornamento GitHub con doppio clic
 
-## Novità 1.5 — Chiusura condivisa e pit programmabile
+Da questa versione non è più necessario usare `Upload files` su GitHub ogni volta.
 
-- Il pit stop si può **programmare in qualsiasi punto del circuito**.
-- Il piano box è separato dalla scelta del turno: puoi avere, ad esempio, `BOX PROGRAMMATO · INTER` e scegliere comunque NORMAL / ATTACK / CONSERVE / ERS.
-- La monoposto entra automaticamente quando il movimento del turno **raggiunge o supera la pit-entry**, quindi un tiro alto non può più farti saltare involontariamente l'ingresso.
-- Il piano resta memorizzato per tutti i turni necessari e sopravvive a refresh/riconnessione perché vive sul server.
-- Prima di arrivare alla pit-entry puoi cambiare la mescola programmata oppure annullare completamente la sosta.
-- La strategia box resta gestibile anche durante un duello.
-- I bot usano la stessa logica: possono decidere in anticipo la sosta e proteggere le gomme fino all'ingresso.
+1. Estrai la nuova versione di Race Command.
+2. Fai doppio clic su `AGGIORNA_GITHUB.bat`.
+3. Al primo utilizzo incolla il link HTTPS del repository, ad esempio:
+   `https://github.com/tuo-utente/race-command`
+4. Il BAT salva quel link nel tuo profilo Windows.
+5. Clona automaticamente l'ultima versione presente su GitHub.
+6. Sostituisce i file con quelli della build che hai appena estratto.
+7. Crea il commit e fa `git push` sul branch `main`.
+8. Se Render è collegato a `main` con Auto-Deploy attivo, il deploy parte automaticamente dopo il push.
 
-## Novità 1.2 — Meteo e gomme già in pre-room
+### Primo utilizzo del BAT
 
-- La lobby mostra il **meteo effettivo della partenza** e una previsione sintetica.
-- Il meteo visto in lobby resta invariato fino a LIGHTS OUT.
-- In pre-room sono selezionabili tutte e cinque le mescole: **Soft, Medium, Hard, Intermediate e Wet**.
-- Ogni mescola mostra il dado previsto con il meteo di partenza e indica quella più adatta.
-- La scelta viene salvata sul server appena tocchi la gomma, quindi non torna più automaticamente su Medium.
-- I bot scelgono automaticamente le gomme di partenza in base alle condizioni.
-- A ogni rematch viene generato un nuovo scenario meteo pre-gara.
-
-
-## Hotfix 1.1.1
-- Selezione reale della gomma di partenza in lobby: Soft / Medium / Hard vengono salvate immediatamente, prima del READY.
-- La scelta resta corretta anche dopo refresh o riconnessione.
-
-## Novità 1.1 — Race Awareness
-- Durante ogni duello restano visibili **mappa, posizione di tutte e 6 le auto, classifica, gomme, usura ed ERS**.
-- I due piloti coinvolti sono evidenziati sulla mappa e in classifica.
-- Il duello mostra ruolo (attaccante/difensore), posizione e distacco prima della scelta.
-- Le opzioni ERS vengono disabilitate quando l’energia non basta, con controllo anche lato server.
-- Classifica normale con distacchi dal leader e maggiore leggibilità delle risorse.
-- Mappa con START/FINISH e frecce di direzione più chiare.
-- Box: ogni mescola mostra il dado previsto per il meteo attuale e quella migliore viene evidenziata.
-- Bilanciamento gomme rivisto: Soft più esplosiva ma molto più corta, Medium equilibrata, Hard più stabile; pit stop normale più costoso.
+- È necessario **Git for Windows**.
+- Se Git non è presente e Windows dispone di `winget`, il BAT propone di installarlo automaticamente.
+- Alla prima operazione GitHub può aprire il browser tramite Git Credential Manager per effettuare il login. Non vengono salvati token o password dentro Race Command.
+- Il repository usato viene salvato in `%USERPROFILE%\.race-command-github-repo.txt`.
+- Se vuoi cambiare repository, riapri il BAT e scegli `C = Cambia`.
 
 ## Regola fondamentale: griglia sempre da 6
-Il server gestisce automaticamente i bot:
 
-- 1 giocatore umano + 5 bot
+Il server mantiene automaticamente sei monoposto:
+
+- 1 umano + 5 bot
 - 2 umani + 4 bot
 - 3 umani + 3 bot
 - 4 umani + 2 bot
 - 5 umani + 1 bot
 - 6 umani + 0 bot
 
-Quando un nuovo umano entra in lobby, sostituisce automaticamente un bot. Se un umano lascia la lobby, il server ripristina automaticamente un bot. Non esistono più pulsanti manuali per aggiungere/rimuovere bot.
+Quando entra un nuovo umano, sostituisce un bot. Quando un umano lascia la lobby, torna automaticamente un bot.
 
 ## Multiplayer da reti diverse
-Quando il progetto è pubblicato su Render (o un altro host Node pubblico), tutti usano lo stesso URL HTTPS. I giocatori possono quindi essere su Wi-Fi diversi, 4G/5G o in città diverse.
+
+Con il progetto pubblicato su Render (o altro host Node pubblico), tutti aprono lo stesso URL HTTPS. Possono quindi essere su Wi-Fi diversi, 4G/5G o in città diverse.
 
 Flusso:
-1. Un giocatore apre il sito e crea la stanza.
-2. Riceve un codice di 4 caratteri e un link invito.
-3. Gli altri aprono lo stesso sito da qualsiasi rete e inseriscono il codice (o usano il link).
-4. La griglia resta automaticamente da 6.
-5. Gli umani scelgono gomma e READY; i bot sono gestiti dal server.
+1. Un giocatore crea la stanza.
+2. Riceve codice e link invito.
+3. Gli altri entrano dallo stesso sito.
+4. La griglia resta da 6.
+5. Ogni umano sceglie gomma e READY.
 6. L'host avvia la gara.
 
 ## Gameplay incluso
-- 3 / 5 / 8 / 10 giri
-- scelte simultanee segrete
-- NORMAL / ATTACK / CONSERVE / ERS come azioni simultanee
-- pit stop programmabile separatamente in qualsiasi momento
-- Soft / Medium / Hard / Intermediate / Wet
-- usura gomme e ritmo/dado dipendente dalla mescola
-- meteo dinamico
-- DRS e scia
-- tre settori con caratteristiche differenti
-- pit-entry e pit lane reali
-- Safety Car
-- duelli attaccante/difensore con scelte segrete e reveal
-- bot strategici che valutano meteo, usura, ERS, distacco, settore e momento della prossima sosta
-- classifica e Race Control
-- schermata finale con statistiche
-- rematch
-- PWA installabile su Home
-- riconnessione automatica
-- host migration
+
+- gare da 3 / 5 / 8 / 10 giri;
+- scelte simultanee segrete;
+- NORMAL / ATTACK / CONSERVE / ERS;
+- pit stop programmabile in qualsiasi momento e indipendente dall'azione del turno;
+- Soft / Medium / Hard / Intermediate / Wet;
+- meteo iniziale visibile in pre-room e meteo dinamico durante la gara;
+- usura e prestazione delle gomme;
+- DRS e scia;
+- tre settori con caratteristiche differenti;
+- pit-entry e pit lane reali;
+- Safety Car;
+- duelli attaccante/difensore con mappa e classifica sempre visibili;
+- bot strategici per meteo, usura, ERS, distacchi, settori, box e duelli;
+- chiusura condivisa della sessione;
+- classifica e Race Control;
+- statistiche finali e rematch;
+- PWA installabile;
+- riconnessione automatica e host migration.
+
+## Pit programmato
+
+BOX non è un'azione del turno. Puoi programmare una mescola in qualunque momento e continuare a selezionare normalmente il ritmo. Il piano resta server-side finché la monoposto non raggiunge o supera la pit-entry; a quel punto la sosta viene eseguita automaticamente nello stesso turno.
+
+## Chiusura condivisa della sessione
+
+Qualunque umano può usare **FERMA / ESCI**.
+
+- Il richiedente parte come `OK · ESCO`.
+- Gli altri umani scelgono `OK · ESCO` oppure `NO · RESTO`.
+- Nessuna risposta entro 30 secondi = `NO · RESTO`.
+- Durante il voto gara/duelli/semafori sono in pausa.
+- Chi vota OK esce live senza F5.
+- Chi vota NO resta; le auto lasciate dagli umani passano all'IA per conservare 6 auto.
+- Se tutti gli umani accettano, la stanza viene chiusa definitivamente e non è più accessibile.
 
 ## Disconnessioni
-- In lobby: un umano disconnesso ha 60 secondi per riconnettersi; dopo viene rimosso e il posto torna a un bot.
-- In gara: una perdita di rete non elimina immediatamente il pilota. Il server usa azioni conservative/standard allo scadere dei timer e il giocatore può riconnettersi.
-- Se un giocatore preme esplicitamente ESCI durante la gara, la sua monoposto continua come AI per mantenere la griglia da 6.
 
-## Test effettuati
-`npm run test:all` verifica automaticamente:
-- tutte le composizioni 1+5 fino a 6+0;
-- sostituzione automatica bot/umani;
-- gara 1 umano + 5 bot;
-- gara 2 umani + 4 bot;
-- programmazione anticipata del pit e ingresso automatico quando viene raggiunta la pit-entry;
-- segretezza delle scelte simultanee;
-- gara completa fino alla bandiera a scacchi con duelli.
+- Lobby: 60 secondi di grazia, poi il posto torna a un bot.
+- Gara: una perdita temporanea di rete non elimina subito il pilota; è possibile riconnettersi.
+- Uscita esplicita durante una gara: la monoposto continua come AI.
 
 ## Avvio locale Windows
+
 1. Installa Node.js 22 o più recente.
-2. Estrai la cartella.
+2. Estrai lo ZIP.
 3. Doppio clic su `START_WINDOWS.bat`.
-4. Apri `http://localhost:3000` sul PC.
-5. Per dispositivi sulla stessa rete usa l'indirizzo LAN mostrato nella finestra del server.
+4. Sul PC apri `http://localhost:3000`.
+5. Sulla stessa LAN puoi usare l'indirizzo mostrato nella finestra del server.
 
 ## Avvio locale macOS/Linux
+
 ```bash
 chmod +x START_MAC_LINUX.sh
 ./START_MAC_LINUX.sh
 ```
 
 ## Pubblicazione Internet
+
 Vedi `DEPLOY_RENDER.md`.
 
-## Nota sull'hosting gratuito
-Le stanze sono conservate nella memoria del server. Durante una partita attiva il client invia un keep-alive periodico, ma un riavvio/redeploy dell'istanza hosting elimina le stanze attive. Per un gioco privato/hobby questo evita database e account; per disponibilità mission-critical servirebbe persistenza esterna.
+## Aggiornare una versione già pubblicata
 
+Se il repository e Render sono già configurati, per le prossime versioni il flusso consigliato è semplicemente:
+
+1. scarica ed estrai il nuovo ZIP;
+2. doppio clic `AGGIORNA_GITHUB.bat`;
+3. conferma il repository salvato;
+4. attendi il messaggio `FATTO`;
+5. Render esegue l'auto-deploy del nuovo commit.
 
 ## Verifica versione online
-Dopo il deploy apri `/api/health`: la build corretta deve mostrare `"version":"1.6.0"`. Durante la gara compare anche il badge `v1.6`. Se non compare, il deploy non ha ancora sostituito la build precedente.
 
+Apri:
 
-## Chiusura condivisa della sessione
-Qualunque giocatore umano può usare **FERMA / ESCI**. Il richiedente vota automaticamente **OK, ESCO** e gli altri umani ricevono la richiesta. Chi vota OK esce; chi vota NO resta. Se tutti gli umani accettano, la stanza viene chiusa definitivamente e il codice non è più accessibile durante la vita del server. Durante la votazione la gara è in pausa; nessuna risposta entro 30 secondi vale come **NO, RESTO**.
+`https://TUO-SITO.onrender.com/api/health`
+
+La build 1.7 corretta deve mostrare:
+
+```json
+{"ok":true,"version":"1.7.3"}
+```
+
+Durante la gara compare anche il badge `v1.7.3`.
+
+## Test automatici
+
+`npm run test:all` verifica:
+
+- griglia automatica 1+5 fino a 6+0;
+- multiplayer e scelte segrete;
+- votazione/chiusura sessione e uscita live;
+- gara completa fino alla bandiera a scacchi;
+- pit programmato;
+- duelli;
+- bilanciamento gomme;
+- presenza degli asset v1.7, animazioni e updater GitHub.
+
+## Nota sull'hosting
+
+Le stanze vivono nella memoria del processo Node. Un riavvio o redeploy dell'host elimina le partite attive. È una scelta adatta all'uso hobby/privato attuale e mantiene l'architettura semplice; una versione con persistenza delle sessioni richiederebbe uno storage esterno.
+
+### Updater GitHub 1.7.3
+
+Se una versione precedente mostrava il prompt PowerShell `Destination:`, la 1.7.3 elimina quel problema: i percorsi non vengono più passati come parametri della riga di comando.

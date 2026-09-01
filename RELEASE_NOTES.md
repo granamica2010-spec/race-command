@@ -1,107 +1,81 @@
-# Race Command Web 1.6
+# Race Command v1.7.3
 
-## Fix live session exit
-- Risolto il caso in cui la sessione era già chiusa sul server ma il telefono restava nella schermata precedente finché non veniva fatto F5.
-- `session_exit` e `session_closed` vengono ora lasciati fluire prima della chiusura dello stream SSE.
-- STOP/voto restituiscono anche `closed` / `exited` al client come fallback immediato.
-- Il client torna alla home automaticamente, pulisce la sessione locale e chiude la connessione realtime.
-- Se un terminal event viene comunque perso, il controllo di riconnessione verifica lo stato dopo ~650 ms invece di 2,5 s.
-- Nuovo test automatico `test-live-exit.js`: verifica uscita live senza refresh in modalità solo, voto parziale e unanimità.
+- Corretto `AGGIORNA_GITHUB.bat`: sostituita la copia via `robocopy` con PowerShell, più robusta con cartelle estratte da ZIP e percorsi Windows.
+- Aggiunti controlli di integrità (`server.js`, `package.json`, `public/index.html`) prima del commit.
+- Nessuna modifica alle regole di gioco rispetto alla v1.7.
 
-# Race Command Web 1.5
+# Race Command Web 1.7 — Game Feel Update
 
-## Novità principali
-- Richiesta di chiusura sessione avviabile da qualunque giocatore umano.
-- Il richiedente è automaticamente su **OK · ESCO**.
-- Tutti gli altri umani ricevono la votazione sincronizzata.
-- **OK**: il giocatore esce; durante una gara la sua auto continua come bot per mantenere la griglia a 6.
-- **NO**: il giocatore resta nella stessa sessione.
-- Se tutti gli umani votano OK, la stanza viene chiusa definitivamente e non è più accessibile.
-- Timer di 30 secondi; mancata risposta = **NO · RESTO**.
-- Gara, semafori e duelli vengono messi in pausa durante la richiesta e riprendono dal tempo residuo.
-- Migliorata la revoca del controllo quando un umano lascia e la sua auto passa all'IA.
-- Asset 1.5 rinominati per evitare cache di versioni precedenti.
+## Animazioni e feedback
+- Nuovo lancio animato del dado per ogni risoluzione del turno.
+- Il valore mostrato non viene generato dal client: deriva sempre dal risultato server-side già deciso.
+- Pipeline `DADO → BONUS → MOVIMENTO` con reveal progressivo dei modificatori.
+- PACE finale evidenziata prima/durante il movimento.
+- Movimento auto reso più rapido e leggibile.
+- Auto che guadagnano posizioni evidenziate durante il movimento.
+- Banner live per sorpassi, posizioni perse, pit stop e DRS.
+- Effetti pioggia visuali per pista umida/bagnata e glow DRS.
+- Effetti sonori browser opzionali tramite `FX`.
+- Animazioni ridotte se il dispositivo usa `prefers-reduced-motion`.
 
-# Race Command 1.4 — Planned Pit Stops
+## Duelli
+- Il server ora espone anche `attackerRoll`, `defenderRoll`, `attackerBonus` e `defenderBonus`.
+- Reveal del duello con D6 grezzo + bonus + totale per entrambi.
+- Scelte, mappa, classifica, gomme, usura ed ERS restano visibili come dalla 1.1.
 
-- BOX non è più un'azione del turno: è un piano strategico persistente e indipendente.
-- Il giocatore può programmare Soft / Medium / Hard / Intermediate / Wet in qualunque punto del circuito.
-- NORMAL / ATTACK / CONSERVE / ERS restano selezionabili normalmente anche con un pit già programmato.
-- Quando il movimento raggiunge o supera la pit-entry, il server intercetta automaticamente la monoposto ed esegue la sosta nello stesso turno.
-- Un tiro alto non può più far saltare la pit-entry e costringere ad aspettare un altro giro.
-- Il piano box può essere cambiato o annullato prima dell'ingresso.
-- Il piano è server-side, quindi resta valido dopo refresh e riconnessioni.
-- Pit strategy disponibile anche durante la schermata duello.
-- IA bot aggiornata per pianificare le soste in anticipo.
-- Nuovi test automatici verificano persistenza del piano e almeno un pit automatico in una gara completa.
+## Aggiornamento automatico GitHub
+- Nuovo `AGGIORNA_GITHUB.bat`.
+- Primo avvio: chiede il link HTTPS del repository e lo memorizza nel profilo Windows.
+- Se Git manca e `winget` è disponibile, propone l'installazione automatica di Git for Windows.
+- Clona l'ultima versione del repository in una cartella temporanea.
+- Sostituisce tutti i file tracciati con la nuova build.
+- Crea commit e push automatico su `main`.
+- Nessuna password/token hardcoded nel progetto; l'autenticazione è delegata a Git/Git Credential Manager.
+- Con Render Auto-Deploy `On Commit`, il push aggiorna automaticamente il sito.
+
+## Cache e versione
+- Asset frontend rinominati `app-1.7.js` e `styles-1.7.css`.
+- Cache server `no-store` applicata genericamente agli asset JS/CSS versionati.
+- Service Worker aggiornato a `race-command-v1-7`.
+- `/api/health` → `version: 1.7.3`.
+- Badge `v1.7` durante la gara.
+
+## Test
+- Suite multiplayer completa superata.
+- Gara completa fino al traguardo superata.
+- Session close/live exit superati.
+- Balance guard superato.
+- Nuovo release guard per asset v1.7 e updater GitHub.
+- Sequenza Git clone → sostituzione → commit → push verificata anche contro un repository Git reale di test.
 
 ---
 
-# Race Command 1.2 — Pre-race Weather & Full Tyre Choice
+## Funzioni ereditate dalle release precedenti
 
-- Meteo di partenza visibile direttamente nella lobby.
-- Previsione pre-gara disponibile prima del READY.
-- Soft / Medium / Hard / Intermediate / Wet tutte selezionabili in pre-room.
-- Il server salva subito la mescola selezionata, anche prima del READY.
-- Il meteo mostrato in lobby viene mantenuto fino alla partenza.
-- I bot impostano la mescola di partenza in funzione del meteo.
-- Il rematch genera un nuovo scenario meteorologico.
+### 1.6
+- Uscita/chiusura sessione live senza refresh.
 
----
+### 1.5
+- Votazione condivisa `FERMA / ESCI` con pausa della gara.
 
-# Race Command 1.1.1 — Lobby tyre hotfix
+### 1.4 / 1.3
+- Pit programmabile in anticipo, persistente e indipendente dall'azione del turno.
 
-- Corretto il bug che riportava sempre la selezione pre-gara su Medium.
-- Soft / Medium / Hard sono ora selezionabili prima del READY.
-- La mescola scelta viene salvata immediatamente sul server e sopravvive a refresh/riconnessione.
-- Una volta READY, la mescola resta bloccata finché non si annulla READY.
+### 1.2
+- Meteo pre-room e tutte le cinque mescole selezionabili prima del READY.
 
-# Race Command 1.1 — Release Notes
+### 1.1
+- Mappa/classifica sempre visibili durante i duelli, migliore race awareness e primo pass di bilanciamento gomme.
+## Hotfix updater GitHub 1.7.3
 
-## Race Awareness
-- Duelli con mappa e classifica sempre visibili.
-- Evidenziazione dei due piloti coinvolti e distacco pre-duello.
-- Informazioni su gomma, usura ed ERS durante la scelta.
-- Spettatori mantengono la vista della gara durante i duelli.
-- Timer duello sempre visibile.
-- ERS non selezionabile se insufficiente, con validazione server-side.
-- Classifica con distacco dal leader.
-- START/FINISH e senso di marcia resi espliciti sulla mappa.
-- Scelta gomme al box con dado previsto e indicazione IDEALE.
-
-## Balance pass
-- Soft: degrado 16 (prima 10), curva prestazionale più aggressiva.
-- Medium: progressiva e bilanciata.
-- Hard: D7 su asciutto e degrado 4 (prima D6/degrado 5).
-- Pit loss normale circa -5, Safety Car -2.
-- Test Monte Carlo interno: su stint lunghi asciutti Soft e Medium risultano molto vicine, Hard sacrifica qualche casella per evitare soste.
-
-## Correzioni
-- Nessun contatto casuale se l’attaccante rinuncia (HOLD) o il difensore lascia passare (DON’T FIGHT).
-- Selezionare un’opzione nel duello non ricostruisce più la pagina, evitando salti di scroll su smartphone.
-
-# Race Command 1.0 FINAL
-
-## Versione finale del gameplay base
-- griglia fissa da 6 auto;
-- bot completamente automatici da 1+5 a 6+0;
-- possibilità di avviare la gara anche con un solo umano;
-- IA bot migliorata per gomme, meteo, ERS, distacchi, settori, box e duelli;
-- sostituzione automatica dei posti liberi in lobby;
-- uscita volontaria in gara → monoposto convertita in AI;
-- 60 s di grazia per disconnessioni in lobby;
-- griglia di partenza randomizzata per evitare vantaggio fisso all'host;
-- keep-alive per hosting Internet gratuito durante partite attive;
-- PWA con icone 192/512 px;
-- configurazione Render Frankfurt pronta;
-- test end-to-end di una gara completa fino alla bandiera a scacchi.
-
-## Test finale
-`npm run test:all` superato.
+- `AGGIORNA_GITHUB.bat` non contiene più comandi PowerShell complessi inline.
+- La copia dei file è delegata a `AGGIORNA_GITHUB.ps1`, evitando che `cmd.exe` interpreti caratteri PowerShell come `@(...)`, pipe o parentesi.
+- Controllo esplicito di `server.js`, `package.json` e `public/index.html` prima del commit.
+- Nessuna modifica alle regole di gioco rispetto alla 1.7.1.
 
 
-## 1.4 — Cache-safe pit planning
-- `PROGRAMMA PIT` è separato dalle azioni di ritmo e disponibile in qualunque punto del circuito.
-- Il piano box resta persistente fino alla prossima pit-entry, dove viene eseguito automaticamente.
-- Asset frontend rinominati (`app-1.4.js`, `styles-1.4.css`) e cache disabilitata per evitare che PWA/Render mostrino la UI precedente dopo un deploy.
-- Badge `v1.4` visibile durante la gara e `/api/health` restituisce `version: 1.4.0`, per verificare immediatamente quale build è in esecuzione.
+## Hotfix updater GitHub 1.7.3
+
+- Eliminato il passaggio di `Source` e `Destination` come parametri PowerShell dalla riga di comando.
+- I percorsi vengono ora passati tramite variabili d'ambiente (`RC_SOURCE` e `RC_DESTINATION`).
+- Questo evita il prompt inatteso `Destination:` causato dal parsing Windows dei percorsi con backslash finale.

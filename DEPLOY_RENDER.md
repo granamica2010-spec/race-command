@@ -1,19 +1,19 @@
-# Pubblicare Race Command su Render
+# Pubblicare e aggiornare Race Command su Render
 
-La build è pronta per Render tramite `render.yaml` e `Dockerfile`.
+La build include `render.yaml` e `Dockerfile` ed è pronta per essere eseguita come servizio Node/Docker.
 
-## Metodo consigliato: GitHub + Render Blueprint
-1. Crea un repository GitHub e carica **il contenuto di questa cartella nella root del repository** (quindi `server.js`, `render.yaml`, `Dockerfile`, `public/`, ecc.).
-2. Accedi a Render.
-3. `New` → `Blueprint`.
+## Prima pubblicazione
+
+1. Crea un repository GitHub, ad esempio `race-command`.
+2. Metti i file di Race Command nella **root** del repository.
+3. Su Render scegli `New` → `Blueprint`.
 4. Collega il repository GitHub.
-5. Render rileva `render.yaml`.
-6. Conferma il servizio `race-command` nella regione `frankfurt` e piano `free`.
-7. Attendi il deploy.
-8. Render fornisce un URL tipo `https://race-command-xxxx.onrender.com`.
-9. Tutti i giocatori aprono quell'URL, anche da reti diverse.
+5. Render legge `render.yaml`.
+6. Conferma il servizio `race-command`.
+7. Terminato il deploy, Render assegna un URL HTTPS pubblico.
 
-## Configurazione inclusa
+La configurazione inclusa è:
+
 ```yaml
 services:
   - type: web
@@ -25,18 +25,35 @@ services:
     autoDeploy: true
 ```
 
-Il server ascolta automaticamente la variabile `PORT` fornita da Render.
+## Aggiornamenti successivi — metodo consigliato
 
-## Render Free
-Il piano gratuito può andare in sleep dopo 15 minuti senza traffico in entrata. Race Command invia un keep-alive HTTP ogni 4 minuti **solo mentre un browser è collegato a una stanza**, quindi una gara attiva genera traffico in ingresso. Se nessuno sta giocando, il servizio può addormentarsi e la prima apertura successiva può richiedere un breve cold start.
+Dalla v1.7 usa `AGGIORNA_GITHUB.bat`:
 
-## Controllo dopo il deploy
+1. estrai il nuovo ZIP;
+2. doppio clic sul BAT;
+3. al primo utilizzo incolla il link GitHub HTTPS;
+4. completa eventualmente il login GitHub nel browser;
+5. il BAT esegue clone, sostituzione file, commit e push su `main`;
+6. Render, se Auto-Deploy è attivo su `On Commit`, avvia automaticamente il deploy del nuovo commit.
+
+Non è quindi necessario ricaricare ogni volta tutti i file dal sito GitHub.
+
+## Controllo versione
+
 Apri:
+
 `https://TUO-URL.onrender.com/api/health`
 
-Deve restituire un JSON con `"ok": true` e versione `1.2.0`.
+Per la v1.7 deve comparire `"version":"1.7.3"`.
 
-Poi prova:
-- telefono A su Wi-Fi → crea stanza;
-- telefono B su 4G/5G o altro Wi-Fi → entra con il codice;
-- la lobby deve mostrare `2 UMANI + 4 BOT = 6`.
+## Multiplayer da reti diverse
+
+Una volta online, tutti i giocatori utilizzano lo stesso URL Render. Non devono essere sulla stessa rete: possono usare Wi-Fi diversi o rete mobile.
+
+## Nota sul piano gratuito
+
+Un host gratuito può sospendere servizi inattivi. Race Command invia un keep-alive HTTP periodico mentre un browser è collegato a una stanza. Se il servizio è stato sospeso perché nessuno giocava, la prima apertura successiva può richiedere il riavvio dell'istanza.
+
+## Persistenza
+
+Le stanze sono in memoria. Un redeploy o riavvio del server elimina le partite attive: esegui quindi gli aggiornamenti tra una sessione e l'altra.

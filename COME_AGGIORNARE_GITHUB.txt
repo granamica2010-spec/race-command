@@ -1,0 +1,19 @@
+RACE COMMAND - AGGIORNAMENTO AUTOMATICO GITHUB
+==============================================
+
+IMPORTANTE: estrai completamente lo ZIP prima di avviare il BAT.
+Non eseguire AGGIORNA_GITHUB.bat direttamente dentro lo ZIP.
+
+1. Estrai Race_Command_Web_1.7.3_ROOT.zip in una cartella normale.
+2. Fai doppio clic su AGGIORNA_GITHUB.bat.
+3. La prima volta incolla il link HTTPS del repository GitHub, ad esempio:
+   https://github.com/NOMEUTENTE/race-command
+4. Conferma con S.
+5. Il BAT scarica il repository, copia questa build, crea il commit e fa push.
+6. Se Render ha Auto-Deploy attivo sul branch main, l'aggiornamento online parte da solo.
+
+Dalle volte successive il link GitHub resta memorizzato sul PC.
+
+NOTA v1.7.3:
+E' stato sostituito il vecchio passaggio di copia via ROBOCOPY con una copia
+PowerShell piu robusta, per evitare l'errore "non sono riuscito a copiare i file".

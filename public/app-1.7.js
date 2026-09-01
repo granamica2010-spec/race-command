@@ -14,6 +14,9 @@ let resolutionData = null;
 let duelResult = null;
 let reconnectCheck = null;
 let lastToastTimer = null;
+let soundEnabled = localStorage.getItem('rc_sound') === '1';
+let audioCtx = null;
+let resolutionTimers = [];
 
 const racePathD = 'M78 212 C58 140 109 89 181 91 C231 93 250 119 291 110 C338 100 360 67 418 91 C474 114 501 172 478 222 C456 269 399 280 353 256 C313 235 294 210 257 220 C219 231 207 275 157 273 C112 271 89 247 78 212 Z';
 const pitPathD = 'M162 269 C135 302 94 282 78 212';
@@ -33,6 +36,61 @@ function setNetwork(ok, label) {
   if (!netEl) return;
   netEl.textContent = label || (ok ? 'ONLINE' : 'RICONNESSIONE…');
   netEl.classList.toggle('offline', !ok);
+}
+function soundToggleHtml() {
+  return `<button class="soundToggle ${soundEnabled ? 'on' : ''}" id="soundToggle" title="Effetti audio">${soundEnabled ? '🔊' : '🔇'} FX</button>`;
+}
+function bindSoundToggle() {
+  const el = document.getElementById('soundToggle');
+  if (!el) return;
+  el.onclick = () => {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem('rc_sound', soundEnabled ? '1' : '0');
+    if (soundEnabled) playFx('confirm');
+    render();
+  };
+}
+function playTone(freq, duration = .07, gain = .035, type = 'sine', delay = 0) {
+  if (!soundEnabled) return;
+  try {
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    const t = audioCtx.currentTime + delay;
+    const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + .008); g.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    osc.connect(g); g.connect(audioCtx.destination); osc.start(t); osc.stop(t + duration + .02);
+  } catch {}
+}
+function playFx(kind) {
+  if (!soundEnabled) return;
+  if (kind === 'roll') { for (let i=0;i<5;i++) playTone(170 + i*45, .045, .025, 'square', i*.055); }
+  else if (kind === 'land') { playTone(430,.08,.05,'triangle'); playTone(620,.09,.035,'triangle',.07); }
+  else if (kind === 'pass') { playTone(500,.06,.035,'sawtooth'); playTone(760,.10,.04,'sawtooth',.065); }
+  else if (kind === 'pit') { playTone(310,.06,.035,'square'); playTone(310,.06,.035,'square',.09); playTone(520,.08,.04,'square',.18); }
+  else if (kind === 'confirm') { playTone(480,.055,.025,'triangle'); }
+  else if (kind === 'warning') { playTone(220,.10,.04,'square'); playTone(180,.10,.04,'square',.12); }
+}
+function weatherClass() {
+  const i = state?.weatherIndex ?? 0;
+  return i >= 3 ? 'weatherVeryWet' : i >= 2 ? 'weatherWet' : i === 1 ? 'weatherDamp' : 'weatherDry';
+}
+function weatherLayer() {
+  const i = state?.weatherIndex ?? 0;
+  return i ? `<div class="weatherFx ${weatherClass()}" aria-hidden="true"></div>` : '';
+}
+function trackFrame(extra = '') {
+  return `<div class="trackWrap ${weatherClass()} ${state?.me?.drs ? 'drsLive' : ''} ${extra}">${trackSvg()}${weatherLayer()}</div>`;
+}
+function clearResolutionTimers() {
+  for (const id of resolutionTimers) { clearTimeout(id); clearInterval(id); }
+  resolutionTimers = [];
+}
+function later(fn, ms) { const id = setTimeout(fn, ms); resolutionTimers.push(id); return id; }
+function showRaceEvent(text, kind = 'neutral') {
+  document.getElementById('raceEventSplash')?.remove();
+  const el = document.createElement('div'); el.id = 'raceEventSplash'; el.className = `raceEventSplash ${kind}`; el.textContent = text;
+  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => { el.classList.remove('show'); setTimeout(()=>el.remove(),220); }, 1150);
 }
 async function post(path, body) {
   const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -75,7 +133,7 @@ function inviteCodeFromUrl() {
 function renderHome() {
   const invite = inviteCodeFromUrl();
   const savedName = localStorage.getItem('rc_name') || '';
-  app.innerHTML = `<div class="home"><section class="homeCard"><div class="brand"><b>RACE</b> COMMAND · WEB 1.5</div><h1 class="screenTitle">La gara, sui vostri telefoni.</h1><p class="subtitle">Stanza condivisa, strategie segrete simultanee, meteo, gomme, pit stop e duelli reali tra giocatori.</p><div class="field"><label>Nickname</label><input id="name" maxlength="18" placeholder="Andre" autocomplete="nickname" value="${escapeHtml(savedName)}"></div><div class="homeActions"><button class="btn primary" id="create">CREA PARTITA</button><button class="btn" id="joinToggle">ENTRA CON CODICE</button></div><div id="joinBox" ${invite ? '' : 'hidden'}><div class="field"><label>Codice stanza</label><input id="roomCode" maxlength="4" placeholder="F7K2" autocapitalize="characters" value="${escapeHtml(invite)}"></div><button class="btn green" id="join" style="width:100%;margin-top:10px">ENTRA</button></div><div class="homeNote">Nessun account richiesto. Online potete giocare anche da Wi-Fi, 5G o città diverse usando lo stesso link e codice stanza.</div></section></div>`;
+  app.innerHTML = `<div class="home"><section class="homeCard"><div class="brand"><b>RACE</b> COMMAND · WEB 1.7.3</div><h1 class="screenTitle">La gara, sui vostri telefoni.</h1><p class="subtitle">Stanza condivisa, strategie segrete simultanee, meteo, gomme, pit stop e duelli reali tra giocatori.</p><div class="field"><label>Nickname</label><input id="name" maxlength="18" placeholder="Andre" autocomplete="nickname" value="${escapeHtml(savedName)}"></div><div class="homeActions"><button class="btn primary" id="create">CREA PARTITA</button><button class="btn" id="joinToggle">ENTRA CON CODICE</button></div><div id="joinBox" ${invite ? '' : 'hidden'}><div class="field"><label>Codice stanza</label><input id="roomCode" maxlength="4" placeholder="F7K2" autocapitalize="characters" value="${escapeHtml(invite)}"></div><button class="btn green" id="join" style="width:100%;margin-top:10px">ENTRA</button></div><div class="homeNote">Nessun account richiesto. Online potete giocare anche da Wi-Fi, 5G o città diverse usando lo stesso link e codice stanza.</div></section></div>`;
   const nameEl = document.getElementById('name');
   const rememberName = () => localStorage.setItem('rc_name', nameEl.value.trim().slice(0, 18));
   document.getElementById('create').onclick = async () => {
@@ -111,10 +169,7 @@ function connect() {
     render();
   });
   source.addEventListener('resolution', e => {
-    resolutionData = JSON.parse(e.data);
-    if (state) render();
-    animateTrack(resolutionData);
-    setTimeout(() => { resolutionData = null; }, 2100);
+    showResolution(JSON.parse(e.data));
   });
   source.addEventListener('duel_resolution', e => {
     duelResult = JSON.parse(e.data);
@@ -122,14 +177,10 @@ function connect() {
   });
   source.addEventListener('session_exit', e => {
     let info = {}; try { info = JSON.parse(e.data); } catch {}
-    toast(info.reason === 'accepted_close_request' ? 'Hai accettato: sei uscito dalla sessione' : 'Sei uscito dalla sessione');
-    history.replaceState({}, '', '/');
-    wipeSession();
+    exitSessionLive(info.reason === 'accepted_close_request' ? 'Hai accettato: sei uscito dalla sessione' : 'Sei uscito dalla sessione');
   });
   source.addEventListener('session_closed', e => {
-    toast('Sessione chiusa definitivamente');
-    history.replaceState({}, '', '/');
-    wipeSession();
+    exitSessionLive('Sessione chiusa definitivamente');
   });
   source.onerror = () => {
     setNetwork(false);
@@ -141,7 +192,7 @@ function connect() {
       } catch (e) {
         if (/stanza|pilota|sessione chiusa/i.test(e.message)) { toast('La sessione non esiste più'); wipeSession(); }
       }
-    }, 2500);
+    }, 650);
   };
 }
 
@@ -153,15 +204,26 @@ function render() {
   else renderFinish();
   renderSessionCloseControls();
 }
+function exitSessionLive(message = 'Sei uscito dalla sessione') {
+  toast(message);
+  history.replaceState({}, '', '/');
+  wipeSession();
+}
 async function requestSessionClose() {
   if (!state?.me || state.me.isBot) return;
   if (!window.confirm('Inviare a tutti i giocatori reali una richiesta per fermare la sessione? La tua risposta sarà automaticamente “OK, esco”.')) return;
-  try { await post(`/api/rooms/${state.code}/close-request`, { playerId: state.me.id }); }
-  catch (e) { toast(e.message); }
+  try {
+    const result = await post(`/api/rooms/${state.code}/close-request`, { playerId: state.me.id });
+    if (result.closed) exitSessionLive('Sessione chiusa definitivamente');
+    else if (result.exited) exitSessionLive('Hai accettato: sei uscito dalla sessione');
+  } catch (e) { toast(e.message); }
 }
 async function voteSessionClose(choice) {
-  try { await post(`/api/rooms/${state.code}/close-vote`, { playerId: state.me.id, choice }); }
-  catch (e) { toast(e.message); }
+  try {
+    const result = await post(`/api/rooms/${state.code}/close-vote`, { playerId: state.me.id, choice });
+    if (result.closed) exitSessionLive('Sessione chiusa definitivamente');
+    else if (result.exited) exitSessionLive('Hai accettato: sei uscito dalla sessione');
+  } catch (e) { toast(e.message); }
 }
 function renderSessionCloseControls() {
   document.getElementById('sessionStopFab')?.remove();
@@ -301,8 +363,8 @@ function renderRace() {
   const pitStatus = plan
     ? `<div><div class="ey">Pit strategy</div><b>BOX PROGRAMMATO · ${names[plan]}</b><div class="small">${pitDistanceText} · entrerai automaticamente appena la raggiungi</div></div>`
     : `<div><div class="ey">Pit strategy</div><b>${pitDistanceText}</b><div class="small">Puoi programmare il prossimo cambio gomme in qualsiasi momento</div></div>`;
-  app.innerHTML = `<div class="app"><div class="topbar"><div><div class="brand"><b>RACE</b> COMMAND · ${state.code}</div><h2 style="margin-top:3px">Catalunya · GP</h2></div><div class="badges"><span class="badge">Giro ${me.lap} / ${state.rules.maxLaps}</span><span class="badge">${state.weather.icon} ${state.weather.name}</span><span class="badge">${state.safetyTurns ? `🟡 SC · ${state.safetyTurns} TURNI` : '🟢 GREEN'}</span><span class="badge buildBadge">v1.5</span></div></div><div class="raceLayout"><section class="panel"><div class="stats"><div class="card"><div class="ey">Posizione</div><div class="big">${me.rank}°</div><div class="small">${me.rank === 1 ? 'Leader' : `+${(state.players[me.rank-2].progress-me.progress).toFixed(1)} dalla P${me.rank-1}`}</div></div><div class="card"><div class="ey">Avanzamento</div><div class="big">${Math.floor(me.progress)}</div><div class="small">caselle totali</div></div></div><div class="card" style="margin-top:8px"><div class="row"><div class="tyreLine"><span class="ring" style="border-color:${colors[me.tyre]};margin:0">${me.tyre}</span><div><div class="ey">${names[me.tyre]}</div><b>Ritmo D${me.effectiveDie}${state.weather.name !== 'DRY' && ['S', 'M', 'H'].includes(me.tyre) ? ' ⚠️' : ''}</b></div></div><div style="text-align:right"><div class="ey">Usura</div><b>${me.wear}%</b></div></div><div class="bar" style="margin-top:8px"><i style="width:${me.wear}%"></i></div></div><div class="card" style="margin-top:8px"><div class="row"><div class="ey">ERS</div><b>${me.ers}%</b></div><div class="bar" style="margin-top:7px"><i style="width:${me.ers}%"></i></div></div><div class="card sectorCard"><div class="row"><div><div class="ey">Zona pista</div><b>${secName}</b><div class="small">${secHint}</div></div><span class="badge ${me.drs ? 'drsOn' : ''}">${me.drs ? 'DRS ON' : 'DRS OFF'}</span></div></div><div class="card" style="margin-top:8px"><div class="row"><div><div class="ey">Meteo</div><b style="font-size:20px">${state.weather.icon} ${state.weather.name}</b></div><span class="small">${state.weather.rain}% pioggia</span></div><div class="forecast">${forecast()}</div></div><div class="card pitPlanCard" style="margin-top:8px"><div class="row" style="align-items:flex-start;flex-wrap:wrap">${pitStatus}<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ${plan ? '' : 'primary'}" id="pitPlanBtn">${plan ? 'CAMBIA PIANO' : 'PROGRAMMA PIT'}</button>${plan ? '<button class="btn" id="cancelPitPlan">ANNULLA</button>' : ''}</div></div></div><div class="card" style="margin-top:8px"><div class="row"><div><div class="ey">Fase simultanea</div><b>${locked ? 'SCELTA BLOCCATA 🔒' : state.phase === 'resolving' ? 'RISOLUZIONE…' : 'SCEGLI E CONFERMA'}</b></div><div class="big" id="countdown" style="font-size:27px">${secondsLeft()}</div></div><div class="actionGrid">${actionButton('normal', 'NORMALE', 'ritmo standard', locked || state.phase !== 'action')}${actionButton('attack', 'ATTACK', '+2 · più usura', locked || state.phase !== 'action')}${actionButton('conserve', 'CONSERVE', '-1 · salva gomme', locked || state.phase !== 'action')}${actionButton('ers', 'ERS', me.ers >= 25 ? '+3 · costa 25%' : `serve 25% · hai ${me.ers}%`, locked || state.phase !== 'action' || me.ers < 25)}</div>${!locked && state.phase === 'action' ? `<button class="btn primary confirmAction" id="confirmAction" ${!pendingAction ? 'disabled' : ''}>${pendingAction ? `CONFERMA ${pendingAction.toUpperCase()}` : 'SCEGLI UN’AZIONE'}</button>` : ''}<div class="small lockCount">${state.lockedCount} / ${state.totalPlayers} piloti hanno bloccato la scelta</div><div class="resolution ${resolutionData ? 'show' : ''}" id="resolution"></div></div></section><section class="panel"><div class="trackWrap">${trackSvg()}</div><div class="rank">${state.players.map((p, i) => `<div class="rankRow ${p.id === me.id ? 'me' : ''}"><b>${i + 1}</b><i class="dot ${p.connected ? 'online' : ''}" style="background:${p.color}"></i><div><b>${escapeHtml(p.name)}</b><div class="small">${names[p.tyre]} · ${p.wear}% · ERS ${p.ers}%${p.connected ? '' : p.isBot ? '' : ' · OFFLINE'}</div></div><span class="gapChip" title="Distacco dal leader">${gapToLeader(p, i)}</span></div>`).join('')}</div><div style="margin-top:10px"><div class="ey">Race Control</div><div class="feed">${state.raceLog.slice().reverse().map(x => `<div>${escapeHtml(x)}</div>`).join('')}</div></div></section></div></div>`;
-  positionCars(); bindRaceActions(); startCountdown(); if (resolutionData) renderResolutionBox(resolutionData);
+  app.innerHTML = `<div class="app"><div class="topbar"><div><div class="brand"><b>RACE</b> COMMAND · ${state.code}</div><h2 style="margin-top:3px">Catalunya · GP</h2></div><div class="badges"><span class="badge">Giro ${me.lap} / ${state.rules.maxLaps}</span><span class="badge">${state.weather.icon} ${state.weather.name}</span><span class="badge">${state.safetyTurns ? `🟡 SC · ${state.safetyTurns} TURNI` : '🟢 GREEN'}</span><span class="badge buildBadge">v1.7.3</span>${soundToggleHtml()}</div></div><div class="raceLayout"><section class="panel"><div class="stats"><div class="card"><div class="ey">Posizione</div><div class="big">${me.rank}°</div><div class="small">${me.rank === 1 ? 'Leader' : `+${(state.players[me.rank-2].progress-me.progress).toFixed(1)} dalla P${me.rank-1}`}</div></div><div class="card"><div class="ey">Avanzamento</div><div class="big">${Math.floor(me.progress)}</div><div class="small">caselle totali</div></div></div><div class="card" style="margin-top:8px"><div class="row"><div class="tyreLine"><span class="ring" style="border-color:${colors[me.tyre]};margin:0">${me.tyre}</span><div><div class="ey">${names[me.tyre]}</div><b>Ritmo D${me.effectiveDie}${state.weather.name !== 'DRY' && ['S', 'M', 'H'].includes(me.tyre) ? ' ⚠️' : ''}</b></div></div><div style="text-align:right"><div class="ey">Usura</div><b>${me.wear}%</b></div></div><div class="bar" style="margin-top:8px"><i style="width:${me.wear}%"></i></div></div><div class="card" style="margin-top:8px"><div class="row"><div class="ey">ERS</div><b>${me.ers}%</b></div><div class="bar" style="margin-top:7px"><i style="width:${me.ers}%"></i></div></div><div class="card sectorCard"><div class="row"><div><div class="ey">Zona pista</div><b>${secName}</b><div class="small">${secHint}</div></div><span class="badge ${me.drs ? 'drsOn' : ''}">${me.drs ? 'DRS ON' : 'DRS OFF'}</span></div></div><div class="card" style="margin-top:8px"><div class="row"><div><div class="ey">Meteo</div><b style="font-size:20px">${state.weather.icon} ${state.weather.name}</b></div><span class="small">${state.weather.rain}% pioggia</span></div><div class="forecast">${forecast()}</div></div><div class="card pitPlanCard" style="margin-top:8px"><div class="row" style="align-items:flex-start;flex-wrap:wrap">${pitStatus}<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ${plan ? '' : 'primary'}" id="pitPlanBtn">${plan ? 'CAMBIA PIANO' : 'PROGRAMMA PIT'}</button>${plan ? '<button class="btn" id="cancelPitPlan">ANNULLA</button>' : ''}</div></div></div><div class="card" style="margin-top:8px"><div class="row"><div><div class="ey">Fase simultanea</div><b>${locked ? 'SCELTA BLOCCATA 🔒' : state.phase === 'resolving' ? 'RISOLUZIONE…' : 'SCEGLI E CONFERMA'}</b></div><div class="big" id="countdown" style="font-size:27px">${secondsLeft()}</div></div><div class="actionGrid">${actionButton('normal', 'NORMALE', 'ritmo standard', locked || state.phase !== 'action')}${actionButton('attack', 'ATTACK', '+2 · più usura', locked || state.phase !== 'action')}${actionButton('conserve', 'CONSERVE', '-1 · salva gomme', locked || state.phase !== 'action')}${actionButton('ers', 'ERS', me.ers >= 25 ? '+3 · costa 25%' : `serve 25% · hai ${me.ers}%`, locked || state.phase !== 'action' || me.ers < 25)}</div>${!locked && state.phase === 'action' ? `<button class="btn primary confirmAction" id="confirmAction" ${!pendingAction ? 'disabled' : ''}>${pendingAction ? `CONFERMA ${pendingAction.toUpperCase()}` : 'SCEGLI UN’AZIONE'}</button>` : ''}<div class="small lockCount">${state.lockedCount} / ${state.totalPlayers} piloti hanno bloccato la scelta</div><div class="resolution ${resolutionData ? 'show' : ''}" id="resolution"></div></div></section><section class="panel">${trackFrame()}<div class="rank">${state.players.map((p, i) => `<div class="rankRow ${p.id === me.id ? 'me' : ''}"><b>${i + 1}</b><i class="dot ${p.connected ? 'online' : ''}" style="background:${p.color}"></i><div><b>${escapeHtml(p.name)}</b><div class="small">${names[p.tyre]} · ${p.wear}% · ERS ${p.ers}%${p.connected ? '' : p.isBot ? '' : ' · OFFLINE'}</div></div><span class="gapChip" title="Distacco dal leader">${gapToLeader(p, i)}</span></div>`).join('')}</div><div style="margin-top:10px"><div class="ey">Race Control</div><div class="feed">${state.raceLog.slice().reverse().map(x => `<div>${escapeHtml(x)}</div>`).join('')}</div></div></section></div></div>`;
+  positionCars(); bindRaceActions(); bindSoundToggle(); startCountdown(); if (resolutionData) renderResolutionBox(resolutionData);
 }
 function startCountdown() {
   const el = document.getElementById('countdown'); if (!el) return;
@@ -348,27 +410,66 @@ function openPit() {
 }
 function showResolution(r) {
   resolutionData = r;
+  clearResolutionTimers();
   if (state && state.status === 'racing' && state.phase !== 'duel') render();
-  animateTrack(r);
-  setTimeout(() => { resolutionData = null; }, 2100);
+  renderResolutionBox(r);
+  playResolutionSequence(r);
+  later(() => { resolutionData = null; }, 1650);
 }
 function renderResolutionBox(r) {
   const my = r.results[state.me.id], el = document.getElementById('resolution'); if (!my || !el) return;
-  el.innerHTML = `<div class="ey">Risoluzione server</div><div class="die">${my.raw}</div><div class="chips"><span class="chip">D${my.die}</span>${my.mods.map(m => `<span class="chip">${escapeHtml(m)}</span>`).join('')}</div><b style="display:block;margin-top:7px">TOTAL PACE ${my.move}</b>`;
+  const actionName = (state.me.selectedAction || pendingAction || 'normal').toUpperCase();
+  el.innerHTML = `<div class="resolutionTop"><div><div class="ey">Turno ${r.turn} · ${actionName}</div><b>Risoluzione server</b></div><div class="turnPipeline"><span class="active" id="pipeRoll">1 · DADO</span><span id="pipeMods">2 · BONUS</span><span id="pipeMove">3 · MOVIMENTO</span></div></div><div class="diceStage"><div class="diceShadow"></div><div class="diceShell d${my.die} rolling" id="liveDie"><span id="liveDieValue">?</span><small>D${my.die}</small></div></div><div class="chips resolutionMods" id="resolutionMods"><span class="chip baseChip">BASE D${my.die}</span>${my.mods.map(m => `<span class="chip modChip">${escapeHtml(m)}</span>`).join('')}</div><div class="totalPace" id="totalPace">PACE <b>—</b></div>`;
+}
+function playResolutionSequence(r) {
+  const my = r.results[state.me.id]; if (!my) return;
+  const die = document.getElementById('liveDie'), value = document.getElementById('liveDieValue');
+  const mods = [...document.querySelectorAll('#resolutionMods .modChip')], total = document.getElementById('totalPace');
+  if (!die || !value) { animateTrack(r, 850); return; }
+  playFx('roll');
+  let tick = 0;
+  const roller = setInterval(() => { value.textContent = String(1 + Math.floor(Math.random() * my.die)); if (++tick > 12) clearInterval(roller); }, 42);
+  resolutionTimers.push(roller);
+  later(() => {
+    clearInterval(roller); value.textContent = my.raw; die.classList.remove('rolling'); die.classList.add('landed'); playFx('land');
+    document.getElementById('pipeRoll')?.classList.add('done'); document.getElementById('pipeMods')?.classList.add('active');
+  }, 420);
+  mods.forEach((chip, i) => later(() => chip.classList.add('reveal'), 500 + i*70));
+  later(() => {
+    if (total) { total.innerHTML = `PACE <b>${my.move}</b>`; total.classList.add('show'); }
+    document.getElementById('pipeMods')?.classList.add('done'); document.getElementById('pipeMove')?.classList.add('active');
+    animateTrack(r, 760);
+    if (my.pitted) playFx('pit');
+  }, 650 + Math.min(240, mods.length*55));
+  later(() => {
+    document.getElementById('pipeMove')?.classList.add('done');
+    const ids = Object.keys(r.oldPositions || {});
+    const oldOrder = [...ids].sort((a,b)=>(r.oldPositions[b]||0)-(r.oldPositions[a]||0));
+    const newOrder = [...ids].sort((a,b)=>(r.newPositions[b]||0)-(r.newPositions[a]||0));
+    const oldRank = oldOrder.indexOf(state.me.id)+1, newRank = newOrder.indexOf(state.me.id)+1;
+    if (my.pitted) showRaceEvent(`🔧 BOX · ${names[my.pitTyre]}`, 'pit');
+    else if (newRank && oldRank && newRank < oldRank) { showRaceEvent(`▲ SORPASSO · P${oldRank} → P${newRank}`, 'gain'); playFx('pass'); }
+    else if (newRank && oldRank && newRank > oldRank) { showRaceEvent(`▼ POSIZIONE PERSA · P${oldRank} → P${newRank}`, 'loss'); playFx('warning'); }
+    else if (my.mods.some(m=>m.startsWith('DRS'))) showRaceEvent('DRS +2 · ATTACCO APERTO', 'drs');
+  }, 1450);
 }
 function pointOn(path, frac) { return path.getPointAtLength(Math.max(0, Math.min(1, frac)) * path.getTotalLength()); }
-function animateTrack(r) {
+function animateTrack(r, dur = 850) {
   requestAnimationFrame(() => {
     const racePath = document.getElementById('racePath'), pitPath = document.getElementById('pitPath');
     if (!racePath || !state) return;
     cancelAnimationFrame(animFrame);
-    const start = performance.now(), dur = 1750;
+    const start = performance.now();
+    const ids = Object.keys(r.oldPositions || {});
+    const oldOrder = [...ids].sort((a,b)=>(r.oldPositions[b]||0)-(r.oldPositions[a]||0));
+    const newOrder = [...ids].sort((a,b)=>(r.newPositions[b]||0)-(r.newPositions[a]||0));
+    const gained = new Set(ids.filter(id => newOrder.indexOf(id) < oldOrder.indexOf(id)));
     function racePoint(progress) {
       const frac = ((progress % state.rules.cellsPerLap) + state.rules.cellsPerLap) % state.rules.cellsPerLap / state.rules.cellsPerLap;
       return pointOn(racePath, frac);
     }
     function frame(t) {
-      const f = Math.min(1, (t - start) / dur), ease = 1 - Math.pow(1 - f, 3);
+      const f = Math.min(1, (t - start) / dur), ease = f < .5 ? 2*f*f : 1 - Math.pow(-2*f+2,2)/2;
       for (const p of r.players) {
         const el = document.getElementById(`car-${p.id}`); if (!el) continue;
         const a = r.oldPositions[p.id] ?? p.progress, b = r.newPositions[p.id] ?? p.progress, result = r.results[p.id];
@@ -377,16 +478,15 @@ function animateTrack(r) {
           if (f < .28) {
             const startPt = racePoint(a), entryPt = pointOn(pitPath, 0), lf = f / .28;
             pt = { x: startPt.x + (entryPt.x - startPt.x) * lf, y: startPt.y + (entryPt.y - startPt.y) * lf };
-          } else if (f < .80) {
-            pt = pointOn(pitPath, (f - .28) / .52);
-          } else {
+          } else if (f < .80) pt = pointOn(pitPath, (f - .28) / .52);
+          else {
             const exitPt = pointOn(pitPath, 1), endPt = racePoint(b), lf = (f - .80) / .20;
             pt = { x: exitPt.x + (endPt.x - exitPt.x) * lf, y: exitPt.y + (endPt.y - exitPt.y) * lf };
           }
-        } else {
-          const v = a + (b - a) * ease; pt = racePoint(v);
-        }
+        } else { const v = a + (b - a) * ease; pt = racePoint(v); }
         el.setAttribute('transform', `translate(${pt.x} ${pt.y})`);
+        el.classList.toggle('overtakeCar', gained.has(p.id) && f > .42);
+        el.classList.toggle('pitCar', !!result?.pitted && f > .25 && f < .88);
       }
       if (f < 1) animFrame = requestAnimationFrame(frame);
     }
@@ -411,12 +511,12 @@ function renderBattle() {
   const locked = !!d?.myChoice, attackerRank = rankOfPlayer(d?.attackerId), defenderRank = rankOfPlayer(d?.defenderId);
   const duelGap = d ? Math.abs((state.players.find(p=>p.id===d.attackerId)?.progress || 0) - (state.players.find(p=>p.id===d.defenderId)?.progress || 0)).toFixed(1) : '—';
   const pitMini = `<div class="card" style="margin-top:9px"><div class="row" style="align-items:flex-start"><div><div class="ey">Pit strategy</div><b>${me.pitPlanTyre ? `BOX PROGRAMMATO · ${names[me.pitPlanTyre]}` : `PIT ENTRY FRA ${me.boxDistance}`}</b><div class="small">${me.pitPlanTyre ? 'Entrata automatica alla prossima pit-entry' : 'Puoi programmare il cambio anche durante il duello'}</div></div><div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn" id="battlePitPlan">${me.pitPlanTyre ? 'CAMBIA' : 'PROGRAMMA'}</button>${me.pitPlanTyre ? '<button class="btn" id="battleCancelPit">ANNULLA</button>' : ''}</div></div></div>`;
-  const context = `<aside class="battleContext"><div class="card contextSummary"><div class="ey">Situazione prima della scelta</div><div class="contextVs"><div><b>${escapeHtml(d?.attackerName || '')}</b><span>P${attackerRank || '—'} · ATTACCA</span></div><strong>${duelGap}<small> cas.</small></strong><div><b>${escapeHtml(d?.defenderName || '')}</b><span>P${defenderRank || '—'} · DIFENDE</span></div></div></div><div class="trackWrap miniTrack">${trackSvg()}</div>${pitMini}<div class="ey" style="margin-top:9px">Classifica live</div>${compactStandings([d?.attackerId,d?.defenderId])}</aside>`;
+  const context = `<aside class="battleContext"><div class="card contextSummary"><div class="ey">Situazione prima della scelta</div><div class="contextVs"><div><b>${escapeHtml(d?.attackerName || '')}</b><span>P${attackerRank || '—'} · ATTACCA</span></div><strong>${duelGap}<small> cas.</small></strong><div><b>${escapeHtml(d?.defenderName || '')}</b><span>P${defenderRank || '—'} · DIFENDE</span></div></div></div>${trackFrame('miniTrack')}${pitMini}<div class="ey" style="margin-top:9px">Classifica live</div>${compactStandings([d?.attackerId,d?.defenderId])}</aside>`;
   const spectator = `<section class="panel battle"><div class="waiting"><div class="battleIcon">⚔️</div><div class="screenTitle" style="font-size:28px">Duello in corso</div><p class="subtitle">${escapeHtml(d?.attackerName || '')} sta attaccando ${escapeHtml(d?.defenderName || '')}. Puoi continuare a vedere mappa e classifica mentre aspetti.</p><div class="spectatorBattle"><b>${escapeHtml(d?.attackerName || '')}</b><span>VS</span><b>${escapeHtml(d?.defenderName || '')}</b></div></div></section>`;
   const options = involved ? duelOptions(role, me) : [];
-  const battle = involved ? `<section class="panel battle"><div class="battleTop"><div><div class="ey">${role === 'attack' ? 'Stai attaccando' : 'Stai difendendo'}</div><h2>YOU vs ${escapeHtml(opp?.name || '')}</h2><div class="duelResources"><span>P${me.rank} · ${names[me.tyre]} ${me.wear}%</span><span>ERS ${me.ers}%</span><span>Rivale P${rankOfPlayer(oppId)} · ${names[opp?.tyre] || ''} ${opp?.wear ?? '—'}%</span></div></div><span class="role">${role === 'attack' ? 'ATTACCANTE' : 'DIFENSORE'}</span></div><div class="arena"><div class="row"><b>YOU</b><b>${escapeHtml(opp?.name || '')}</b></div><div class="lane"><div class="battleCar you" id="battleYou">YOU</div><div class="battleCar rival" id="battleRival">R</div></div><div class="reveal"><div class="choice" id="myReveal">${duelResult ? duelLabels[role === 'attack' ? duelResult.attackerChoice : duelResult.defenderChoice] : (locked ? 'LOCKED 🔒' : '?')}</div><b>VS</b><div class="choice" id="oppReveal">${duelResult ? duelLabels[role === 'attack' ? duelResult.defenderChoice : duelResult.attackerChoice] : '?'}</div></div><div class="big" style="text-align:center;margin-top:10px" id="duelScore">${duelResult ? (role === 'attack' ? `${duelResult.attackerScore} — ${duelResult.defenderScore}` : `${duelResult.defenderScore} — ${duelResult.attackerScore}`) : 'Scegli la mossa'}</div></div>${state.phase === 'duel' && !locked ? `<div class="duelGrid">${options.map(([k,t,s,disabled]) => `<button class="duelBtn ${selectedDuel === k ? 'active' : ''}" data-duel="${k}" ${disabled ? 'disabled' : ''}>${t}<small>${disabled ? `${s} · NON DISPONIBILE` : s}</small></button>`).join('')}</div><div class="duelExplain">Il punteggio è <b>D6 + bonus</b>. In caso di parità, chi difende mantiene la posizione.</div><button class="btn primary" id="duelLock" style="width:100%;margin-top:10px" ${!selectedDuel || options.find(x=>x[0]===selectedDuel)?.[3] ? 'disabled' : ''}>LOCK IN</button>` : `<div class="waiting compact"><b>${state.phase === 'duel_result' ? 'REVEAL!' : 'Scelta bloccata. Attendo l’avversario…'}</b></div>`}</section>` : spectator;
-  app.innerHTML = `<div class="app"><div class="topbar"><div><div class="brand"><b>RACE</b> COMMAND · ${state.code}</div><h2 style="margin-top:3px">BATTLE FOR POSITION</h2></div><div class="badges"><span class="badge">Giro ${me.lap} / ${state.rules.maxLaps}</span><span class="badge">${state.weather.icon} ${state.weather.name}</span><span class="badge">⏱ <span id="duelCountdown">${secondsLeft()}</span>s</span><span class="badge">${d?.locked || 0} / 2 LOCKED</span></div></div><div class="battleLayout">${battle}${context}</div></div>`;
-  positionCars(); startDuelCountdown();
+  const battle = involved ? `<section class="panel battle"><div class="battleTop"><div><div class="ey">${role === 'attack' ? 'Stai attaccando' : 'Stai difendendo'}</div><h2>YOU vs ${escapeHtml(opp?.name || '')}</h2><div class="duelResources"><span>P${me.rank} · ${names[me.tyre]} ${me.wear}%</span><span>ERS ${me.ers}%</span><span>Rivale P${rankOfPlayer(oppId)} · ${names[opp?.tyre] || ''} ${opp?.wear ?? '—'}%</span></div></div><span class="role">${role === 'attack' ? 'ATTACCANTE' : 'DIFENSORE'}</span></div><div class="arena"><div class="row"><b>YOU</b><b>${escapeHtml(opp?.name || '')}</b></div><div class="lane"><div class="battleCar you" id="battleYou">YOU</div><div class="battleCar rival" id="battleRival">R</div></div><div class="reveal"><div class="choice" id="myReveal">${duelResult ? duelLabels[role === 'attack' ? duelResult.attackerChoice : duelResult.defenderChoice] : (locked ? 'LOCKED 🔒' : '?')}</div><b>VS</b><div class="choice" id="oppReveal">${duelResult ? duelLabels[role === 'attack' ? duelResult.defenderChoice : duelResult.attackerChoice] : '?'}</div></div><div class="duelDiceReveal" id="duelDiceReveal">${duelResult ? `<div><span>D6</span><b>${role === 'attack' ? duelResult.attackerRoll : duelResult.defenderRoll}</b><small>${role === 'attack' ? `+${duelResult.attackerBonus}` : `+${duelResult.defenderBonus}`}</small></div><strong>${role === 'attack' ? duelResult.attackerScore : duelResult.defenderScore} — ${role === 'attack' ? duelResult.defenderScore : duelResult.attackerScore}</strong><div><span>D6</span><b>${role === 'attack' ? duelResult.defenderRoll : duelResult.attackerRoll}</b><small>${role === 'attack' ? `+${duelResult.defenderBonus}` : `+${duelResult.attackerBonus}`}</small></div>` : '<em>Scegli la mossa</em>'}</div></div>${state.phase === 'duel' && !locked ? `<div class="duelGrid">${options.map(([k,t,s,disabled]) => `<button class="duelBtn ${selectedDuel === k ? 'active' : ''}" data-duel="${k}" ${disabled ? 'disabled' : ''}>${t}<small>${disabled ? `${s} · NON DISPONIBILE` : s}</small></button>`).join('')}</div><div class="duelExplain">Il punteggio è <b>D6 + bonus</b>. In caso di parità, chi difende mantiene la posizione.</div><button class="btn primary" id="duelLock" style="width:100%;margin-top:10px" ${!selectedDuel || options.find(x=>x[0]===selectedDuel)?.[3] ? 'disabled' : ''}>LOCK IN</button>` : `<div class="waiting compact"><b>${state.phase === 'duel_result' ? 'REVEAL!' : 'Scelta bloccata. Attendo l’avversario…'}</b></div>`}</section>` : spectator;
+  app.innerHTML = `<div class="app"><div class="topbar"><div><div class="brand"><b>RACE</b> COMMAND · ${state.code}</div><h2 style="margin-top:3px">BATTLE FOR POSITION</h2></div><div class="badges"><span class="badge">Giro ${me.lap} / ${state.rules.maxLaps}</span><span class="badge">${state.weather.icon} ${state.weather.name}</span><span class="badge">⏱ <span id="duelCountdown">${secondsLeft()}</span>s</span><span class="badge">${d?.locked || 0} / 2 LOCKED</span>${soundToggleHtml()}</div></div><div class="battleLayout">${battle}${context}</div></div>`;
+  positionCars(); bindSoundToggle(); startDuelCountdown();
   const battlePit = document.getElementById('battlePitPlan'); if (battlePit) battlePit.onclick = openPit;
   const battleCancelPit = document.getElementById('battleCancelPit'); if (battleCancelPit) battleCancelPit.onclick = () => setPitPlan(null);
   if (involved && state.phase === 'duel' && !locked) {
@@ -425,13 +525,13 @@ function renderBattle() {
   }
   if (duelResult) animateDuelResult(role, duelResult);
 }
-function showDuelResult(r) { duelResult = r; if (state) render(); setTimeout(() => { duelResult = null; }, 2000); }
+function showDuelResult(r) { duelResult = r; if (state) render(); playFx('roll'); setTimeout(()=>playFx('land'),320); setTimeout(() => { duelResult = null; }, 2000); }
 function animateDuelResult(role, r) {
   requestAnimationFrame(() => {
     const y = document.getElementById('battleYou'), o = document.getElementById('battleRival'); if (!y || !o) return;
     const youWon = role === 'attack' ? r.winner === 'attacker' : r.winner === 'defender';
-    y.classList.add('launch'); o.classList.add('launch');
-    setTimeout(() => { y.classList.remove('launch'); o.classList.remove('launch'); y.style.left = youWon ? '61%' : '29%'; o.style.left = youWon ? '29%' : '61%'; if (r.contact) toast('🟡 CONTACT! SAFETY CAR · 2 TURNI'); else toast(youWon ? 'BATTLE WON ▲' : 'BATTLE LOST ▼'); }, 420);
+    y.classList.add('launch'); o.classList.add('launch'); document.getElementById('duelDiceReveal')?.classList.add('rollingReveal');
+    setTimeout(() => { y.classList.remove('launch'); o.classList.remove('launch'); y.style.left = youWon ? '61%' : '29%'; o.style.left = youWon ? '29%' : '61%'; document.getElementById('duelDiceReveal')?.classList.remove('rollingReveal'); if (r.contact) { playFx('warning'); toast('🟡 CONTACT! SAFETY CAR · 2 TURNI'); } else { playFx(youWon ? 'pass' : 'warning'); toast(youWon ? 'BATTLE WON ▲' : 'BATTLE LOST ▼'); } }, 420);
   });
 }
 
@@ -450,5 +550,5 @@ setInterval(() => {
   fetch('/api/health', { cache: 'no-store' }).catch(() => {});
 }, 4 * 60 * 1000);
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js?v=1.5').catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js?v=1.7.3').catch(() => {});
 if (session.code && session.playerId) connect(); else renderHome();

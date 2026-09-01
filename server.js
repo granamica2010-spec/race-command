@@ -732,16 +732,16 @@ function afterMovement(room) {
   startTurn(room);
 }
 function duelScore(room, p, k) {
-  let base = roll(6);
-  if (k === 'attack') { base += 2; p.wear = clamp(p.wear - 8); }
-  if (k === 'aggressive') { base += 4; p.wear = clamp(p.wear - 16); }
-  if (k === 'ersAttack') { if (p.ers >= 15) { base += 3; p.ers -= 15; p.stats.ersUsed += 15; } }
-  if (k === 'hold') { base = 0; p.ers = clamp(p.ers + 8); }
-  if (k === 'defend') { base += 2; p.wear = clamp(p.wear - 8); }
-  if (k === 'hardDefend') { base += 4; p.wear = clamp(p.wear - 16); }
-  if (k === 'ersDef') { if (p.ers >= 15) { base += 3; p.ers -= 15; p.stats.ersUsed += 15; } }
-  if (k === 'noFight') base = 0;
-  return base;
+  let raw = roll(6), bonus = 0;
+  if (k === 'attack') { bonus = 2; p.wear = clamp(p.wear - 8); }
+  if (k === 'aggressive') { bonus = 4; p.wear = clamp(p.wear - 16); }
+  if (k === 'ersAttack') { if (p.ers >= 15) { bonus = 3; p.ers -= 15; p.stats.ersUsed += 15; } }
+  if (k === 'hold') { raw = 0; bonus = 0; p.ers = clamp(p.ers + 8); }
+  if (k === 'defend') { bonus = 2; p.wear = clamp(p.wear - 8); }
+  if (k === 'hardDefend') { bonus = 4; p.wear = clamp(p.wear - 16); }
+  if (k === 'ersDef') { if (p.ers >= 15) { bonus = 3; p.ers -= 15; p.stats.ersUsed += 15; } }
+  if (k === 'noFight') { raw = 0; bonus = 0; }
+  return { raw, bonus, score: raw + bonus };
 }
 function maybeResolveDuel(room) {
   if (room.closeVote || room.sessionCloseFinalizing) return;
@@ -750,7 +750,8 @@ function maybeResolveDuel(room) {
   if (!choices[attackerId] || !choices[defenderId]) return;
   const a = room.players.find(p => p.id === attackerId), d = room.players.find(p => p.id === defenderId);
   const ac = choices[attackerId], dc = choices[defenderId];
-  const as = duelScore(room, a, ac), ds = duelScore(room, d, dc);
+  const ar = duelScore(room, a, ac), dr = duelScore(room, d, dc);
+  const as = ar.score, ds = dr.score;
   let winner = 'defender';
   if (ac === 'hold') winner = 'defender';
   else if (dc === 'noFight' || as > ds) {
@@ -761,7 +762,7 @@ function maybeResolveDuel(room) {
   const risky = ['aggressive', 'hardDefend'];
   const contact = ac !== 'hold' && dc !== 'noFight' && (risky.includes(ac) || risky.includes(dc)) && Math.random() < .14;
   if (contact) { room.safetyTurns = 2; compressField(room); log(room, '🟡 Contatto! Safety Car per 2 turni.'); }
-  room.duel.result = { attackerChoice: ac, defenderChoice: dc, attackerScore: as, defenderScore: ds, winner, contact };
+  room.duel.result = { attackerChoice: ac, defenderChoice: dc, attackerRoll: ar.raw, defenderRoll: dr.raw, attackerBonus: ar.bonus, defenderBonus: dr.bonus, attackerScore: as, defenderScore: ds, winner, contact };
   room.duelCooldown = 2;
   room.phase = 'duel_result';
   room.deadline = null;
@@ -852,7 +853,7 @@ function staticFile(req, res) {
     } else {
       res.writeHead(200, {
         'Content-Type': mime(file),
-        'Cache-Control': ['service-worker.js','index.html','app-1.6.js','styles-1.6.css'].includes(path.basename(file)) ? 'no-cache, no-store, must-revalidate' : 'public, max-age=300',
+        'Cache-Control': (['service-worker.js','index.html'].includes(path.basename(file)) || /^app-.*\.js$/.test(path.basename(file)) || /^styles-.*\.css$/.test(path.basename(file))) ? 'no-cache, no-store, must-revalidate' : 'public, max-age=300',
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'same-origin',
         'X-Frame-Options': 'DENY',
@@ -866,7 +867,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const parts = u.pathname.split('/').filter(Boolean);
-    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.6.0' });
+    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.7.3' });
 
     if (req.method === 'POST' && u.pathname === '/api/rooms') {
       const b = await readBody(req);
@@ -1037,7 +1038,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🏁 Race Command Web 1.6 avviato`);
+  console.log(`\n🏁 Race Command Web 1.7.3 avviato`);
   console.log(`   Locale: http://localhost:${PORT}`);
   const nets = os.networkInterfaces();
   for (const arr of Object.values(nets)) for (const n of arr || []) if (n.family === 'IPv4' && !n.internal) console.log(`   Wi-Fi/LAN: http://${n.address}:${PORT}`);
