@@ -86,8 +86,71 @@ function randomStartingWeatherIndex(room) {
   if (r < 0.96) return 2;
   return 3;
 }
+
+// The forecast is authoritative: the server generates a coherent weather timeline
+// for the race and the client only displays it. This prevents a sunny +30m forecast
+// from turning into rain on the very next dice roll.
+function generateWeatherTimeline(room, length = 96) {
+  const plan = [];
+  let current = randomStartingWeatherIndex(room);
+  let rainRun = current >= 2 ? 1 : 0;
+  let dryCooldown = 0;
+  const bias = currentCircuit(room).rainBias || 0;
+  plan.push(current);
+  for (let i = 1; i < length; i++) {
+    const r = Math.random();
+    let next = current;
+    if (current >= 2) {
+      rainRun++;
+      // No endless rain: after at most four consecutive wet forecast slots,
+      // the system forces a drying phase of at least two slots.
+      if (rainRun >= 4) {
+        next = 1;
+        dryCooldown = 2;
+        rainRun = 0;
+      } else if (current === 3) {
+        next = r < 0.58 ? 2 : r < 0.78 ? 3 : 1;
+      } else {
+        const stayWet = clamp(0.48 + bias * 0.55, 0.30, 0.72);
+        const heavy = clamp(0.10 + bias * 0.22, 0.04, 0.24);
+        next = r < stayWet ? 2 : r < stayWet + heavy ? 3 : 1;
+      }
+    } else {
+      rainRun = 0;
+      if (dryCooldown > 0) {
+        dryCooldown--;
+        next = current === 0 ? 0 : (r < 0.55 ? 1 : 0);
+      } else if (current === 0) {
+        const toCloud = clamp(0.20 + bias * 0.22, 0.10, 0.34);
+        const toRain = clamp(0.025 + bias * 0.10, 0.01, 0.09);
+        next = r < toRain ? 2 : r < toRain + toCloud ? 1 : 0;
+      } else {
+        const toRain = clamp(0.15 + bias * 0.35, 0.07, 0.34);
+        const toClear = clamp(0.34 - bias * 0.25, 0.18, 0.45);
+        next = r < toRain ? 2 : r < toRain + toClear ? 0 : 1;
+      }
+    }
+    current = next;
+    plan.push(current);
+  }
+  room.weatherPlan = plan;
+  room.weatherCursor = 0;
+  room.weatherIndex = plan[0];
+}
+function ensureWeatherPlan(room) {
+  if (!Array.isArray(room.weatherPlan) || !room.weatherPlan.length) generateWeatherTimeline(room, 96);
+}
+function weatherForecast(room, slots = 4) {
+  ensureWeatherPlan(room);
+  const cursor = room.weatherCursor || 0;
+  return Array.from({ length: slots }, (_, offset) => {
+    const index = room.weatherPlan[Math.min(room.weatherPlan.length - 1, cursor + offset)];
+    const w = weather[index];
+    return { offsetMinutes: offset * 10, weatherIndex: index, name: w.name, label: w.label, icon: w.icon, rain: w.rain };
+  });
+}
 function setStartingConditions(room) {
-  room.weatherIndex = randomStartingWeatherIndex(room);
+  generateWeatherTimeline(room);
   room.trackWetness = room.weatherIndex === 0 ? 0 : room.weatherIndex === 1 ? Math.floor(Math.random()*16) : room.weatherIndex === 2 ? 52 + Math.floor(Math.random()*15) : 82 + Math.floor(Math.random()*14);
 }
 function botStartTyre(room, index = 0) {
@@ -206,6 +269,7 @@ function roomView(room, viewerId) {
     maxLaps: room.maxLaps,
     weather: weather[room.weatherIndex],
     weatherIndex: room.weatherIndex,
+    weatherForecast: weatherForecast(room, 4),
     track: trackCondition(room),
     trackWetness: Math.round(room.trackWetness || 0),
     circuit: currentCircuit(room),
@@ -767,10 +831,10 @@ function resolveActions(room) {
   setTimeout(()=>afterMovement(room),RESOLUTION_DELAY_MS);
 }
 function weatherStep(room) {
-  const circuit=currentCircuit(room), before=trackCondition(room).name, beforeWeather=room.weatherIndex;
-  const r=Math.random();
-  if (r < .12 + Math.max(0,circuit.rainBias)) room.weatherIndex=Math.min(3,room.weatherIndex+1);
-  else if (r > .86 + Math.min(0,circuit.rainBias)) room.weatherIndex=Math.max(0,room.weatherIndex-1);
+  const before=trackCondition(room).name, beforeWeather=room.weatherIndex;
+  ensureWeatherPlan(room);
+  room.weatherCursor = Math.min((room.weatherCursor || 0) + 1, room.weatherPlan.length - 1);
+  room.weatherIndex = room.weatherPlan[room.weatherCursor];
   room.trackWetness=clamp((room.trackWetness||0)+weather[room.weatherIndex].wetDelta,0,100);
   const after=trackCondition(room).name;
   if (beforeWeather!==room.weatherIndex) log(room,`${weather[room.weatherIndex].icon} Meteo → ${weather[room.weatherIndex].label}.`);
@@ -950,7 +1014,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const parts = u.pathname.split('/').filter(Boolean);
-    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '2.0.0' });
+    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '2.0.1' });
 
     if (req.method === 'POST' && u.pathname === '/api/rooms') {
       const b = await readBody(req);
@@ -1137,7 +1201,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🏁 Race Command Web 2.0.0 avviato`);
+  console.log(`\n🏁 Race Command Web 2.0.1 avviato`);
   console.log(`   Locale: http://localhost:${PORT}`);
   const nets = os.networkInterfaces();
   for (const arr of Object.values(nets)) for (const n of arr || []) if (n.family === 'IPv4' && !n.internal) console.log(`   Wi-Fi/LAN: http://${n.address}:${PORT}`);

@@ -14,6 +14,6 @@ Non eseguire AGGIORNA_GITHUB.bat direttamente dentro lo ZIP.
 
 Dalle volte successive il link GitHub resta memorizzato sul PC.
 
-NOTA v2.0.0:
+NOTA v2.0.1:
 E' stato sostituito il vecchio passaggio di copia via ROBOCOPY con una copia
 PowerShell piu robusta, per evitare l'errore "non sono riuscito a copiare i file".

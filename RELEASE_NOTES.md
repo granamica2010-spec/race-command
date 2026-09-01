@@ -1,4 +1,12 @@
-# Race Command v2.0.0 — Strategy Update
+# Race Command v2.0.1 — Weather Forecast Fix
+
+## Correzione meteo
+- La previsione `ORA / +10 / +20 / +30` ora arriva dal server ed è la timeline che la gara seguirà davvero.
+- Il server non ricalcola più casualmente il meteo a ogni tiro di dado.
+- Se il forecast mostra sole/nuvoloso per i prossimi 30 minuti, non può iniziare a piovere al turno successivo.
+- Le finestre di pioggia hanno durata finita: massimo 4 slot consecutivi, poi parte una fase di asciugatura di almeno 20 minuti.
+- Meteo atmosferico e acqua in pista restano separati: può smettere di piovere ma la pista può restare WET/DAMP per qualche turno.
+- Cambiando circuito o facendo rematch viene generata una nuova timeline coerente con le caratteristiche del circuito.
 
 ## Circuiti
 - Aggiunta selezione circuito in pre-room.
@@ -43,7 +51,7 @@
 - Best Strategist.
 
 ## Tecnico
-- Versione API: `2.0.0`.
-- Asset frontend anti-cache: `app-2.0.0.js`, `styles-2.0.0.css`.
+- Versione API: `2.0.1`.
+- Asset frontend anti-cache: `app-2.0.1.js`, `styles-2.0.1.css`.
 - `AGGIORNA_GITHUB.bat` e `AGGIORNA_GITHUB.ps1` inclusi.
 - Suite completa `npm run test:all` aggiornata alla 2.0.

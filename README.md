@@ -43,7 +43,7 @@ Apri:
 La versione corretta deve mostrare:
 
 ```json
-{"ok":true,"version":"2.0.0"}
+{"ok":true,"version":"2.0.1"}
 ```
 
 ## Test
@@ -53,3 +53,6 @@ Con Node.js installato:
 `npm run test:all`
 
 La suite controlla multiplayer, griglia 6/6, chiusura sessione live, circuiti, qualifica, meteo/pista, gara completa, pit, duelli, bilanciamento e asset della release.
+
+### Previsioni meteo 2.0.1
+La fascia `ORA / +10 / +20 / +30` non è più una stima grafica inventata dal browser: viene calcolata dal server e rappresenta l’evoluzione che la gara seguirà realmente per i successivi 30 minuti di gioco. Una finestra di pioggia non può durare indefinitamente: dopo un massimo di quattro slot consecutivi il sistema impone una fase senza precipitazioni, mentre la pista può comunque restare bagnata e asciugarsi gradualmente.
