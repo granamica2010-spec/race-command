@@ -19,9 +19,11 @@ const PIT_ENTRY_CELL = 25;
 const TEST_SPEED = process.env.RC_TEST_SPEED === '1';
 const ACTION_SECONDS = TEST_SPEED ? 2 : 20;
 const DUEL_SECONDS = TEST_SPEED ? 2 : 15;
+const QUALI_SECONDS = TEST_SPEED ? 2 : 18;
 const LIGHTS_SECONDS = TEST_SPEED ? 0.25 : 4;
 const RESOLUTION_DELAY_MS = TEST_SPEED ? 35 : 1550;
 const DUEL_RESULT_DELAY_MS = TEST_SPEED ? 35 : 2100;
+const QUALI_RESULT_DELAY_MS = TEST_SPEED ? 40 : 1800;
 const MAX_PLAYERS = 6;
 const ROOM_TTL_MS = 6 * 60 * 60 * 1000;
 const LOBBY_DISCONNECT_GRACE_MS = 60 * 1000;
@@ -29,41 +31,72 @@ const SESSION_CLOSE_SECONDS = TEST_SPEED ? 2 : 30;
 const TERMINAL_EVENT_GRACE_MS = TEST_SPEED ? 40 : 350;
 
 const compounds = {
-  S: { name: 'SOFT', deg: 16 },
-  M: { name: 'MEDIUM', deg: 7 },
-  H: { name: 'HARD', deg: 4 },
-  I: { name: 'INTER', deg: 8 },
-  W: { name: 'WET', deg: 6 },
+  S: { name: 'SOFT', deg: 16, warmup: 0, fresh: 2 },
+  M: { name: 'MEDIUM', deg: 7, warmup: 1, fresh: 2 },
+  H: { name: 'HARD', deg: 4, warmup: 1, fresh: 3 },
+  I: { name: 'INTER', deg: 8, warmup: 0, fresh: 2 },
+  W: { name: 'WET', deg: 6, warmup: 0, fresh: 2 },
 };
+
+// Meteo atmosferico e stato della pista sono separati: può smettere di piovere
+// mentre l'asfalto resta bagnato e continua ad asciugarsi nei turni successivi.
 const weather = [
-  { name: 'DRY', icon: '☀️', rain: 5 },
-  { name: 'DAMP', icon: '🌦️', rain: 42 },
-  { name: 'WET', icon: '🌧️', rain: 76 },
-  { name: 'VERY WET', icon: '⛈️', rain: 95 },
+  { name: 'CLEAR', label: 'SERENO', icon: '☀️', rain: 5, wetDelta: -18 },
+  { name: 'CLOUDY', label: 'NUVOLOSO', icon: '☁️', rain: 28, wetDelta: -8 },
+  { name: 'RAIN', label: 'PIOGGIA', icon: '🌧️', rain: 78, wetDelta: 18 },
+  { name: 'HEAVY RAIN', label: 'PIOGGIA FORTE', icon: '⛈️', rain: 96, wetDelta: 30 },
 ];
-function randomStartingWeatherIndex() {
-  const r = Math.random();
-  if (r < 0.62) return 0;      // DRY
-  if (r < 0.84) return 1;      // DAMP
-  if (r < 0.96) return 2;      // WET
-  return 3;                     // VERY WET
-}
-function botStartTyre(room, index = 0) {
-  const w = weather[room.weatherIndex].name;
-  if (w === 'DAMP') return index % 3 === 0 ? 'W' : 'I';
-  if (w === 'WET') return index % 3 === 0 ? 'I' : 'W';
-  if (w === 'VERY WET') return 'W';
-  return ['S', 'M', 'H'][index % 3];
-}
+const trackStates = [
+  { name: 'DRY', label: 'ASCIUTTA', icon: '🟢' },
+  { name: 'DAMP', label: 'UMIDA', icon: '🟡' },
+  { name: 'WET', label: 'BAGNATA', icon: '🔵' },
+  { name: 'VERY WET', label: 'MOLTO BAGNATA', icon: '🌊' },
+];
 const grip = {
   DRY: { S: 10, M: 8, H: 7, I: 4, W: 3 },
   DAMP: { S: 6, M: 6, H: 5, I: 10, W: 7 },
   WET: { S: 4, M: 4, H: 4, I: 8, W: 10 },
   'VERY WET': { S: 3, M: 3, H: 3, I: 6, W: 10 },
 };
+
+const CIRCUITS = {
+  catalunya: { id:'catalunya', name:'CATALUNYA', country:'Spagna', tyreWear:1.12, drsBonus:2, slipBonus:1, pitLoss:5, passDifficulty:0.10, rainBias:0.00, technicalRisk:0.13, traits:['USURA ALTA','DRS MEDIO','TECNICA'] },
+  monza:     { id:'monza', name:'MONZA', country:'Italia', tyreWear:0.88, drsBonus:3, slipBonus:2, pitLoss:5, passDifficulty:-0.15, rainBias:-0.04, technicalRisk:0.07, traits:['VELOCISSIMA','DRS FORTE','USURA BASSA'] },
+  monaco:    { id:'monaco', name:'MONACO', country:'Monaco', tyreWear:0.98, drsBonus:1, slipBonus:0, pitLoss:4, passDifficulty:0.65, rainBias:0.04, technicalRisk:0.20, traits:['SORPASSI DIFFICILI','TECNICA','PIT CORTO'] },
+  spa:       { id:'spa', name:'SPA-FRANCORCHAMPS', country:'Belgio', tyreWear:1.04, drsBonus:2, slipBonus:2, pitLoss:6, passDifficulty:-0.05, rainBias:0.20, technicalRisk:0.12, traits:['METEO INSTABILE','SCIA FORTE','PIT LUNGO'] },
+  suzuka:    { id:'suzuka', name:'SUZUKA', country:'Giappone', tyreWear:1.16, drsBonus:1, slipBonus:1, pitLoss:5, passDifficulty:0.25, rainBias:0.12, technicalRisk:0.18, traits:['USURA ALTA','TECNICA','PIOGGIA'] },
+};
 const palette = ['#f04444', '#4e8cff', '#f0b429', '#35b779', '#9b6cff', '#ff7a3d'];
 const BOT_NAMES = ['Apex AI', 'Nova AI', 'Velocity AI', 'Pulse AI', 'Titan AI'];
-
+const BOT_PROFILES = {
+  'Apex AI': { key:'duelist', label:'DUELIST', desc:'forte nei duelli' },
+  'Nova AI': { key:'rain', label:'RAIN MASTER', desc:'legge presto il meteo' },
+  'Velocity AI': { key:'strategist', label:'STRATEGIST', desc:'cerca undercut e pit window' },
+  'Pulse AI': { key:'tyres', label:'TYRE WHISPERER', desc:'protegge molto le gomme' },
+  'Titan AI': { key:'aggressor', label:'AGGRESSOR', desc:'attacca e usa ERS' },
+};
+function currentCircuit(room) { return CIRCUITS[room.circuitId] || CIRCUITS.catalunya; }
+function trackConditionFromWetness(w) { return w < 18 ? trackStates[0] : w < 45 ? trackStates[1] : w < 75 ? trackStates[2] : trackStates[3]; }
+function trackCondition(room) { return trackConditionFromWetness(room.trackWetness || 0); }
+function randomStartingWeatherIndex(room) {
+  const bias = currentCircuit(room).rainBias || 0;
+  const r = Math.random() - bias;
+  if (r < 0.58) return 0;
+  if (r < 0.82) return 1;
+  if (r < 0.96) return 2;
+  return 3;
+}
+function setStartingConditions(room) {
+  room.weatherIndex = randomStartingWeatherIndex(room);
+  room.trackWetness = room.weatherIndex === 0 ? 0 : room.weatherIndex === 1 ? Math.floor(Math.random()*16) : room.weatherIndex === 2 ? 52 + Math.floor(Math.random()*15) : 82 + Math.floor(Math.random()*14);
+}
+function botStartTyre(room, index = 0) {
+  const w = trackCondition(room).name;
+  if (w === 'DAMP') return index % 4 === 0 ? 'W' : 'I';
+  if (w === 'WET') return index % 3 === 0 ? 'I' : 'W';
+  if (w === 'VERY WET') return 'W';
+  return ['S', 'M', 'H'][index % 3];
+}
 function uid() { return crypto.randomBytes(8).toString('hex'); }
 function makeCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -90,7 +123,7 @@ function willReachPitEntry(p, move) { return !!p.pitPlanTyre && p.progress + mov
 function standings(room) { return [...room.players].sort((a, b) => b.progress - a.progress); }
 function nextAhead(room, p) { return room.players.filter(x => x.id !== p.id && x.progress > p.progress).sort((a, b) => a.progress - b.progress)[0] || null; }
 function effectiveDie(room, p) {
-  let n = grip[weather[room.weatherIndex].name][p.tyre];
+  let n = grip[trackCondition(room).name][p.tyre];
   // Compound-specific falloff: Soft is fastest fresh but loses performance sharply;
   // Medium is progressive; Hard gives up peak pace for a much longer stable stint.
   if (p.tyre === 'S') {
@@ -116,10 +149,10 @@ function drsEligible(room, p) {
 }
 function degrade(room, p, mult = 1) {
   let extra = 0;
-  const w = weather[room.weatherIndex].name;
+  const w = trackCondition(room).name;
   if (w === 'DRY' && (p.tyre === 'I' || p.tyre === 'W')) extra = 5;
   if ((w === 'WET' || w === 'VERY WET') && ['S', 'M', 'H'].includes(p.tyre)) extra = 3;
-  p.wear = clamp(p.wear - (compounds[p.tyre].deg + extra) * mult);
+  p.wear = clamp(p.wear - (compounds[p.tyre].deg + extra) * mult * currentCircuit(room).tyreWear);
 }
 function log(room, msg) {
   room.log.push(msg);
@@ -155,6 +188,9 @@ function publicPlayer(room, p) {
     connected: p.isBot ? true : isConnected(room.code, p.id),
     stats: { ...p.stats },
     strategy: [...p.strategy],
+    personality: p.personality || null,
+    damage: p.damage || null,
+    startRank: p.startRank || null,
   };
 }
 function roomView(room, viewerId) {
@@ -170,6 +206,14 @@ function roomView(room, viewerId) {
     maxLaps: room.maxLaps,
     weather: weather[room.weatherIndex],
     weatherIndex: room.weatherIndex,
+    track: trackCondition(room),
+    trackWetness: Math.round(room.trackWetness || 0),
+    circuit: currentCircuit(room),
+    circuitId: room.circuitId,
+    qualifyingEnabled: !!room.qualifyingEnabled,
+    restartActive: !!room.restartActive,
+    qualifying: room.status === 'qualifying' ? { locked: room.players.filter(x=>x.qualiChoice).length, total: room.players.length, myChoice: me?.qualiChoice || null, result: room.qualifyingResult || null } : null,
+    awards: room.awards || null,
     safetyTurns: room.safetyTurns,
     deadline: room.deadline,
     lockedCount: room.phase === 'action' ? room.players.filter(p => p.selectedAction).length : 0,
@@ -195,7 +239,7 @@ function roomView(room, viewerId) {
       result: room.duel.result || null,
     } : null,
     raceLog: room.log.slice(-14),
-    rules: { cellsPerLap: CELLS_PER_LAP, maxLaps: room.maxLaps, pitEntryCell: PIT_ENTRY_CELL, actionSeconds: ACTION_SECONDS, duelSeconds: DUEL_SECONDS },
+    rules: { cellsPerLap: CELLS_PER_LAP, maxLaps: room.maxLaps, pitEntryCell: PIT_ENTRY_CELL, actionSeconds: ACTION_SECONDS, duelSeconds: DUEL_SECONDS, qualifyingSeconds: QUALI_SECONDS, pitLoss: currentCircuit(room).pitLoss },
   };
 }
 function sendSSE(res, type, data) { res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`); }
@@ -303,7 +347,7 @@ function fillPendingBotChoices(room) {
 }
 function resumeAfterCloseVote(room, vote) {
   if (!rooms.has(room.code)) return;
-  if (vote.resumeRemainingMs != null && ['lights', 'action', 'duel'].includes(room.phase)) {
+  if (vote.resumeRemainingMs != null && ['lights', 'action', 'duel', 'qualifying'].includes(room.phase)) {
     room.deadline = now() + Math.max(250, vote.resumeRemainingMs);
   }
   fillPendingBotChoices(room);
@@ -311,6 +355,7 @@ function resumeAfterCloseVote(room, vote) {
   else if (vote.pendingTransition === 'startTurn') setTimeout(() => startTurn(room), 40);
   else if (room.phase === 'action') maybeResolveActions(room);
   else if (room.phase === 'duel') maybeResolveDuel(room);
+  else if (room.phase === 'qualifying') maybeResolveQualifying(room);
   touch(room); broadcast(room);
 }
 function finalizeCloseVote(room, timedOut = false) {
@@ -365,6 +410,13 @@ function newPlayer(name, color, isBot = false) {
     progress: 0,
     selectedAction: null,
     pitPlanTyre: null,
+    damage: null,
+    warmupTurns: 0,
+    freshGripTurns: 0,
+    qualiChoice: null,
+    qualiScore: null,
+    startRank: null,
+    personality: isBot ? 'balanced' : null,
     isBot,
     disconnectedAt: null,
     stats: { passes: 0, pits: 0, duelW: 0, duelL: 0, ersUsed: 0, bestPace: 0 },
@@ -399,6 +451,7 @@ function syncLobbyBots(room) {
     p.color = palette[i % palette.length];
     if (p.isBot) {
       p.ready = true;
+      p.personality = (BOT_PROFILES[p.name] || {key:'balanced'}).key;
       p.tyre = botStartTyre(room, botSlot++);
       p.strategy = [p.tyre];
     }
@@ -416,18 +469,26 @@ function createRoom(hostName) {
     phase: 'lobby',
     turn: 0,
     maxLaps: DEFAULT_LAPS,
-    weatherIndex: randomStartingWeatherIndex(),
+    circuitId: 'catalunya',
+    qualifyingEnabled: true,
+    weatherIndex: 0,
+    trackWetness: 0,
     safetyTurns: 0,
     duelCooldown: 0,
     players: [host],
     deadline: null,
     duel: null,
+    gridOrder: null,
+    qualifyingResult: null,
+    restartActive: false,
+    awards: null,
     closeVote: null,
     sessionCloseFinalizing: false,
     log: ['Stanza creata. In attesa dei piloti.'],
     createdAt: now(),
     updatedAt: now(),
   };
+  setStartingConditions(room);
   syncLobbyBots(room);
   rooms.set(code, room);
   return { room, host };
@@ -439,6 +500,7 @@ function resetPlayerForLobby(p) {
   p.progress = 0;
   p.selectedAction = null;
   p.pitPlanTyre = null;
+  p.damage = null; p.warmupTurns = 0; p.freshGripTurns = 0; p.qualiChoice = null; p.qualiScore = null; p.startRank = null;
   p.stats = { passes: 0, pits: 0, duelW: 0, duelL: 0, ersUsed: 0, bestPace: 0 };
   p.strategy = [p.tyre];
 }
@@ -446,11 +508,12 @@ function resetRoomToLobby(room) {
   room.status = 'lobby';
   room.phase = 'lobby';
   room.turn = 0;
-  room.weatherIndex = randomStartingWeatherIndex();
+  setStartingConditions(room);
   room.safetyTurns = 0;
   room.duelCooldown = 0;
   room.deadline = null;
   room.duel = null;
+  room.gridOrder = null; room.qualifyingResult = null; room.restartActive = false; room.awards = null;
   room.closeVote = null;
   room.sessionCloseFinalizing = false;
   room.log = ['🏁 Rematch pronta. Scegliete le gomme e mettete READY.'];
@@ -505,7 +568,7 @@ function removePlayer(room, playerId) {
 }
 
 function bestBotPitTyre(room, p) {
-  const w = weather[room.weatherIndex].name;
+  const w = trackCondition(room).name;
   if (w === 'DAMP') return 'I';
   if (w === 'WET' || w === 'VERY WET') return 'W';
   const remaining = Math.max(0, raceFinish(room) - p.progress);
@@ -513,72 +576,105 @@ function bestBotPitTyre(room, p) {
 }
 function chooseBotAction(room, p) {
   if (p.selectedAction) return;
-  const w = weather[room.weatherIndex].name;
+  const w = trackCondition(room).name;
   const ahead = nextAhead(room, p);
   const gap = ahead ? ahead.progress - p.progress : 99;
-  const wrongWet = (w === 'WET' || w === 'VERY WET') && ['S', 'M', 'H'].includes(p.tyre);
-  const wrongDry = w === 'DRY' && ['I', 'W'].includes(p.tyre);
-  const needsPit = p.wear < 34 || wrongWet || wrongDry;
+  const profile = p.personality || 'balanced';
+  const wrongWet = (w === 'WET' || w === 'VERY WET') && ['S','M','H'].includes(p.tyre);
+  const wrongDry = w === 'DRY' && ['I','W'].includes(p.tyre);
+  const rainMasterEarly = profile === 'rain' && room.weatherIndex >= 2 && w === 'DAMP';
+  const needsPit = p.wear < (profile === 'tyres' ? 42 : 32) || wrongWet || wrongDry || rainMasterEarly || p.damage;
   if (needsPit) p.pitPlanTyre = bestBotPitTyre(room, p);
-  // Once a stop is planned, protect the current set until the car reaches the pit entry.
-  if (p.pitPlanTyre && p.wear < 42 && boxDistance(p) > 0) { p.selectedAction = 'conserve'; return; }
-  // Close combat: favour ERS or attack when resources and tyres allow it.
-  if (gap <= 2.5 && p.wear > 45) {
-    if (p.ers >= 45 && Math.random() < .58) { p.selectedAction = 'ers'; return; }
-    if (Math.random() < .70) { p.selectedAction = 'attack'; return; }
+  if (p.pitPlanTyre && (p.wear < 45 || p.damage) && boxDistance(p) > 0) { p.selectedAction = 'conserve'; return; }
+  if (profile === 'aggressor') {
+    if (gap <= 3 && p.ers >= 25 && Math.random() < .72) { p.selectedAction='ers'; return; }
+    if (p.wear > 38 && Math.random() < .52) { p.selectedAction='attack'; return; }
   }
-  // Technical sector + ageing tyres: conserve more often.
-  if (sectorOf(p) === 2 && p.wear < 58 && Math.random() < .62) { p.selectedAction = 'conserve'; return; }
-  if (p.ers >= 75 && Math.random() < .35) { p.selectedAction = 'ers'; return; }
-  const r = Math.random();
-  p.selectedAction = r < .18 ? 'attack' : r < .38 ? 'conserve' : 'normal';
+  if (profile === 'strategist' && p.wear < 68 && boxDistance(p) < 12 && Math.random() < .45) p.pitPlanTyre = bestBotPitTyre(room,p);
+  if (profile === 'tyres' && p.wear < 68 && Math.random() < .60) { p.selectedAction='conserve'; return; }
+  if (gap <= 2.5 && p.wear > 45) {
+    if (p.ers >= 45 && Math.random() < (profile==='duelist' ? .70 : .50)) { p.selectedAction='ers'; return; }
+    if (Math.random() < (profile==='duelist' ? .80 : .62)) { p.selectedAction='attack'; return; }
+  }
+  if (sectorOf(p) === 2 && p.wear < 58 && Math.random() < .58) { p.selectedAction='conserve'; return; }
+  if (p.ers >= 75 && Math.random() < .32) { p.selectedAction='ers'; return; }
+  const r=Math.random(); p.selectedAction = r < .17 ? 'attack' : r < .38 ? 'conserve' : 'normal';
 }
 
 function chooseBotDuel(role, p) {
+  const profile = p.personality || 'balanced';
   if (role === 'attack') {
-    if (p.wear < 24) return 'hold';
-    if (p.ers >= 35 && Math.random() < .55) return 'ersAttack';
-    if (p.wear > 62 && Math.random() < .28) return 'aggressive';
-    return Math.random() < .78 ? 'attack' : 'hold';
+    if (p.ers >= 20 && (profile === 'aggressor' || profile === 'duelist') && Math.random() < .55) return 'ersAttack';
+    if (profile === 'duelist') return ['inside','outside','cutback'][Math.floor(Math.random()*3)];
+    if (profile === 'aggressor') return Math.random()<.58 ? 'inside' : 'outside';
+    return Math.random()<.34 ? 'cutback' : Math.random()<.5 ? 'inside' : 'outside';
   }
-  if (p.wear < 20) return 'noFight';
-  if (p.ers >= 35 && Math.random() < .52) return 'ersDef';
-  if (p.wear > 62 && Math.random() < .24) return 'hardDefend';
-  return Math.random() < .82 ? 'defend' : 'noFight';
+  if (p.wear < 18) return 'noFight';
+  if (profile === 'duelist') return Math.random()<.32 ? 'lateBrake' : Math.random()<.5 ? 'coverInside' : 'coverOutside';
+  if (profile === 'aggressor') return Math.random()<.48 ? 'lateBrake' : 'coverInside';
+  if (p.ers >= 20 && Math.random()<.28) return 'ersDef';
+  return Math.random()<.5 ? 'coverInside' : 'coverOutside';
 }
 
+function chooseBotQualifying(p) {
+  const profile = p.personality || 'balanced';
+  if (profile === 'aggressor' || profile === 'duelist') return Math.random()<.65 ? 'max' : 'push';
+  if (profile === 'tyres') return Math.random()<.55 ? 'safe' : 'push';
+  return Math.random()<.18 ? 'safe' : Math.random()<.72 ? 'push' : 'max';
+}
+function maybeResolveQualifying(room) {
+  if (room.status !== 'qualifying' || room.phase !== 'qualifying') return;
+  if (room.players.some(p=>!p.qualiChoice)) return;
+  resolveQualifying(room);
+}
+function resolveQualifying(room) {
+  room.phase='qualifying_result'; room.deadline=null;
+  const results=[];
+  for (const p of room.players) {
+    const choice=p.qualiChoice || 'safe';
+    const raw=roll(10);
+    const bonus=choice==='max'?4:choice==='push'?2:0;
+    const failChance=choice==='max'?.16:choice==='push'?.05:0;
+    const invalid=Math.random()<failChance;
+    const score=invalid ? Math.max(1, raw-5) : raw+bonus;
+    p.qualiScore=score;
+    results.push({id:p.id,name:p.name,choice,raw,bonus,invalid,score});
+  }
+  results.sort((a,b)=>b.score-a.score || Math.random()-.5);
+  room.gridOrder=results.map(r=>r.id);
+  room.qualifyingResult=results;
+  log(room, `⏱️ Pole position: ${results[0].name} (${results[0].score}).`);
+  touch(room);
+  broadcast(room,'qualifying_resolution',pid=>({viewerId:pid,results}));
+  broadcast(room);
+  setTimeout(()=>{ if (rooms.has(room.code) && room.status==='qualifying') prepareRace(room); }, QUALI_RESULT_DELAY_MS);
+}
+function prepareQualifying(room) {
+  room.status='qualifying'; room.phase='qualifying'; room.deadline=now()+QUALI_SECONDS*1000; room.qualifyingResult=null; room.gridOrder=null;
+  for (const p of room.players) { p.qualiChoice=null; p.qualiScore=null; if (p.isBot) p.qualiChoice=chooseBotQualifying(p); }
+  room.log=['⏱️ QUALIFYING SHOOTOUT · scegli SAFE, PUSH o MAX ATTACK.'];
+  touch(room); broadcast(room); maybeResolveQualifying(room);
+}
 
 function prepareRace(room) {
-  room.status = 'starting';
-  room.phase = 'lights';
-  room.deadline = now() + LIGHTS_SECONDS * 1000;
-  room.turn = 0;
-  // Keep the pre-race weather shown in the lobby: tyre choice must match the actual start conditions.
-  room.safetyTurns = 0;
-  room.duelCooldown = 0;
-  room.duel = null;
-  // No qualifying in this version: randomise the six-car starting grid for fairness.
-  for (let i = room.players.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [room.players[i], room.players[j]] = [room.players[j], room.players[i]];
+  room.status = 'starting'; room.phase = 'lights'; room.deadline = now() + LIGHTS_SECONDS * 1000; room.turn = 0;
+  room.safetyTurns = 0; room.duelCooldown = 0; room.duel = null; room.restartActive=false; room.awards=null;
+  const byId=new Map(room.players.map(p=>[p.id,p]));
+  if (room.gridOrder && room.gridOrder.length===room.players.length) room.players = room.gridOrder.map(id=>byId.get(id)).filter(Boolean);
+  else {
+    for (let i=room.players.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [room.players[i],room.players[j]]=[room.players[j],room.players[i]]; }
   }
-  room.log = ['🚦 Griglia da 6 pronta. Sequenza di partenza…'];
-  room.players.forEach((p, i) => {
-    p.progress = Math.max(0, room.players.length - i - 1);
-    p.wear = 100;
-    p.ers = 60;
-    p.selectedAction = null;
-    p.pitPlanTyre = null;
-    p.stats = { passes: 0, pits: 0, duelW: 0, duelL: 0, ersUsed: 0, bestPace: 0 };
-    p.strategy = [p.tyre];
+  room.log.push('🚦 Griglia da 6 pronta. Sequenza di partenza…');
+  room.players.forEach((p,i)=>{
+    p.progress=Math.max(0,room.players.length-i-1); p.startRank=i+1; p.wear=100; p.ers=60; p.selectedAction=null; p.pitPlanTyre=null; p.damage=null; p.warmupTurns=0; p.freshGripTurns=0;
+    p.stats={passes:0,pits:0,duelW:0,duelL:0,ersUsed:0,bestPace:0}; p.strategy=[p.tyre];
   });
-  touch(room);
-  broadcast(room);
+  touch(room); broadcast(room);
 }
 function beginRace(room) {
   if (room.status !== 'starting') return;
   room.status = 'racing';
-  room.log = ['🚦 LIGHTS OUT! La gara è iniziata.'];
+  room.log = [`🚦 LIGHTS OUT! ${currentCircuit(room).name} è iniziato.`];
   startTurn(room);
 }
 function startTurn(room) {
@@ -627,72 +723,58 @@ function maybeResolveActions(room) {
   resolveActions(room);
 }
 function resolveActions(room) {
-  room.phase = 'resolving';
-  room.deadline = null;
-  touch(room);
-  const oldPositions = Object.fromEntries(room.players.map(p => [p.id, p.progress]));
-  const oldOrder = standings(room).map(p => p.id);
-  const results = {};
-  // Snapshot DRS before movement so all players are evaluated from the same race state.
-  const drsSnapshot = new Map(room.players.map(p => [p.id, drsEligible(room, p)]));
-  const nextSnapshot = new Map(room.players.map(p => [p.id, nextAhead(room, p)?.id || null]));
-  const originalDrs = drsEligible;
-  // actionScore is deterministic with current state except random roll; temporarily supply snapshot via room helpers below.
-  room._drsSnapshot = drsSnapshot;
-  room._nextSnapshot = nextSnapshot;
+  room.phase='resolving'; room.deadline=null; touch(room);
+  const oldPositions=Object.fromEntries(room.players.map(p=>[p.id,p.progress]));
+  const oldOrder=standings(room).map(p=>p.id); const results={}; const circuit=currentCircuit(room);
+  const drsSnapshot=new Map(room.players.map(p=>[p.id,drsEligible(room,p)]));
+  const nextSnapshot=new Map(room.players.map(p=>[p.id,nextAhead(room,p)?.id||null]));
   for (const p of room.players) {
-    // Inline the snapshot by temporarily overriding p flags used below.
-    const die = effectiveDie(room, p);
-    const raw = roll(die);
-    let bonus = 0, mult = 1, mods = [], pitted = false;
-    const action = p.selectedAction;
-    if (action === 'attack') {
-      bonus += 2; mult = sectorOf(p) === 2 ? 1.9 : 1.55; mods.push('ATTACK +2');
-      if (sectorOf(p) === 2 && Math.random() < .10) { bonus -= 2; p.wear = clamp(p.wear - 8); mods.push('LOCK-UP -2'); log(room, `⚠️ ${p.name}: lock-up nel settore tecnico.`); }
-    } else if (action === 'conserve') {
-      bonus -= 1; mult = .45; p.ers = clamp(p.ers + 10); mods.push('CONSERVE -1');
-    } else if (action === 'ers') {
-      if (p.ers >= 25) { bonus += 3; p.ers -= 25; p.stats.ersUsed += 25; mods.push('ERS +3'); }
+    const die=effectiveDie(room,p), raw=roll(die); let bonus=0,mult=1,mods=[],pitted=false; const action=p.selectedAction;
+    if (action==='attack') {
+      bonus+=2; mult=sectorOf(p)===2?1.9:1.55; mods.push('ATTACK +2');
+      if (room.restartActive) { bonus+=1; mods.push('RESTART +1'); }
+      if (sectorOf(p)===2 && Math.random()<circuit.technicalRisk) { bonus-=2; p.wear=clamp(p.wear-8); mods.push('LOCK-UP -2'); log(room,`⚠️ ${p.name}: lock-up nel settore tecnico.`); }
+    } else if (action==='conserve') { bonus-=1; mult=.45; p.ers=clamp(p.ers+10); mods.push('CONSERVE -1'); }
+    else if (action==='ers') {
+      if (p.ers>=25) { bonus+=3; if(room.restartActive){bonus+=1;mods.push('RESTART ERS +1');} p.ers-=25; p.stats.ersUsed+=25; mods.push('ERS +3'); }
       else mods.push('ERS EMPTY');
-    } else p.ers = clamp(p.ers + 5);
-    if (!pitted && drsSnapshot.get(p.id)) { bonus += 2; mods.push('DRS +2'); }
-    else if (!pitted && sectorOf(p) === 1) {
-      const aheadId = nextSnapshot.get(p.id);
-      const ahead = aheadId ? room.players.find(x => x.id === aheadId) : null;
-      if (ahead && ahead.progress - p.progress <= 1.5) { bonus += 1; mods.push('SCIA +1'); }
+    } else p.ers=clamp(p.ers+5);
+    if (p.damage==='wing') { bonus-=1; mods.push('ALA -1'); }
+    if (p.warmupTurns>0) { bonus-=1; p.warmupTurns--; mods.push('WARM-UP -1'); }
+    else if (p.freshGripTurns>0) { bonus+=1; p.freshGripTurns--; mods.push('GOMMA FRESCA +1'); }
+    if (drsSnapshot.get(p.id)) { bonus+=circuit.drsBonus; mods.push(`DRS +${circuit.drsBonus}`); }
+    else if (sectorOf(p)===1) {
+      const aheadId=nextSnapshot.get(p.id), ahead=aheadId?room.players.find(x=>x.id===aheadId):null;
+      if (ahead && ahead.progress-p.progress<=1.5 && circuit.slipBonus>0) { bonus+=circuit.slipBonus; mods.push(`SCIA +${circuit.slipBonus}`); }
     }
-    let move = Math.max(1, raw + bonus);
-    if (room.safetyTurns > 0) move = Math.min(move, 4);
-    const pitEntryProgress = nextPitEntryProgress(p.progress);
-    if (willReachPitEntry(p, move)) {
-      pitted = true;
-      const nt = p.pitPlanTyre;
-      const pitCost = room.safetyTurns > 0 ? 2 : 5;
-      const distanceToEntry = Math.max(0, pitEntryProgress - p.progress);
-      move = Math.max(distanceToEntry + 1, move - pitCost);
-      p.tyre = nt; p.wear = 100; p.stats.pits++; p.strategy.push(nt); p.pitPlanTyre = null;
-      mods.push(`PIT -${pitCost}`);
-      log(room, `🔧 ${p.name}: pit stop, ${compounds[nt].name}.`);
-    } else {
-      degrade(room, p, mult);
-    }
-    p.stats.bestPace = Math.max(p.stats.bestPace, move);
-    results[p.id] = { die, raw, bonus, move, mods, pitted, pitTyre: pitted ? p.tyre : null, pitEntryProgress: pitted ? pitEntryProgress : null };
+    let move=Math.max(1,raw+bonus);
+    if (room.safetyTurns>0) move=Math.min(move,4);
+    const pitEntryProgress=nextPitEntryProgress(p.progress);
+    if (willReachPitEntry(p,move)) {
+      pitted=true; const nt=p.pitPlanTyre; const pitCost=room.safetyTurns>0?2:circuit.pitLoss; const distanceToEntry=Math.max(0,pitEntryProgress-p.progress);
+      move=Math.max(distanceToEntry+1,move-pitCost); p.tyre=nt; p.wear=100; p.stats.pits++; p.strategy.push(nt); p.pitPlanTyre=null;
+      const repaired=!!p.damage; p.damage=null; p.warmupTurns=compounds[nt].warmup; p.freshGripTurns=compounds[nt].fresh; mods.push(`PIT -${pitCost}`); if(repaired)mods.push('ALA RIPARATA'); log(room,`🔧 ${p.name}: pit stop, ${compounds[nt].name}${repaired?' + ala riparata':''}.`);
+    } else degrade(room,p,mult);
+    p.stats.bestPace=Math.max(p.stats.bestPace,move);
+    results[p.id]={die,raw,bonus,move,mods,pitted,pitTyre:pitted?p.tyre:null,pitEntryProgress:pitted?pitEntryProgress:null};
   }
-  delete room._drsSnapshot; delete room._nextSnapshot;
-  for (const p of room.players) p.progress += results[p.id].move;
-  const newOrder = standings(room).map(p => p.id);
-  for (const p of room.players) {
-    const a = oldOrder.indexOf(p.id), b = newOrder.indexOf(p.id);
-    if (b < a) p.stats.passes += a - b;
-  }
-  const newPositions = Object.fromEntries(room.players.map(p => [p.id, p.progress]));
-  broadcast(room, 'resolution', pid => ({ turn: room.turn, oldPositions, newPositions, results, viewerId: pid, players: room.players.map(p => publicPlayer(room, p)), rules: { cellsPerLap: CELLS_PER_LAP, pitEntryCell: PIT_ENTRY_CELL } }));
-  setTimeout(() => afterMovement(room), RESOLUTION_DELAY_MS);
+  for (const p of room.players) p.progress+=results[p.id].move;
+  room.restartActive=false;
+  const newOrder=standings(room).map(p=>p.id);
+  for (const p of room.players) { const a=oldOrder.indexOf(p.id),b=newOrder.indexOf(p.id); if(b<a)p.stats.passes+=a-b; }
+  const newPositions=Object.fromEntries(room.players.map(p=>[p.id,p.progress]));
+  broadcast(room,'resolution',pid=>({turn:room.turn,oldPositions,newPositions,results,viewerId:pid,players:room.players.map(p=>publicPlayer(room,p)),rules:{cellsPerLap:CELLS_PER_LAP,pitEntryCell:PIT_ENTRY_CELL}}));
+  setTimeout(()=>afterMovement(room),RESOLUTION_DELAY_MS);
 }
 function weatherStep(room) {
-  if (room.turn >= 2 && room.weatherIndex < 3 && Math.random() < .26) { room.weatherIndex++; log(room, `🌧️ Pista → ${weather[room.weatherIndex].name}.`); }
-  else if (room.weatherIndex > 0 && Math.random() < .11) { room.weatherIndex--; log(room, `☀️ Pista → ${weather[room.weatherIndex].name}.`); }
+  const circuit=currentCircuit(room), before=trackCondition(room).name, beforeWeather=room.weatherIndex;
+  const r=Math.random();
+  if (r < .12 + Math.max(0,circuit.rainBias)) room.weatherIndex=Math.min(3,room.weatherIndex+1);
+  else if (r > .86 + Math.min(0,circuit.rainBias)) room.weatherIndex=Math.max(0,room.weatherIndex-1);
+  room.trackWetness=clamp((room.trackWetness||0)+weather[room.weatherIndex].wetDelta,0,100);
+  const after=trackCondition(room).name;
+  if (beforeWeather!==room.weatherIndex) log(room,`${weather[room.weatherIndex].icon} Meteo → ${weather[room.weatherIndex].label}.`);
+  if (before!==after) log(room,`🛣️ Stato pista → ${trackCondition(room).label} (${Math.round(room.trackWetness)}%).`);
 }
 function findDuel(room) {
   if (room.safetyTurns > 0 || room.duelCooldown > 0) return null;
@@ -714,7 +796,7 @@ function afterMovement(room) {
   // A Safety Car turn is consumed only after a complete action phase, so "2 turni" really means 2 turns.
   if (room.safetyTurns > 0) {
     room.safetyTurns--;
-    if (room.safetyTurns === 0) log(room, '🟢 Safety Car in this lap. Ripartenza!');
+    if (room.safetyTurns === 0) { room.restartActive=true; log(room, '🟢 Safety Car in this lap. RESTART: ATTACK/ERS hanno +1.'); }
   }
   const duel = findDuel(room);
   if (duel) {
@@ -731,56 +813,56 @@ function afterMovement(room) {
   }
   startTurn(room);
 }
-function duelScore(room, p, k) {
-  let raw = roll(6), bonus = 0;
-  if (k === 'attack') { bonus = 2; p.wear = clamp(p.wear - 8); }
-  if (k === 'aggressive') { bonus = 4; p.wear = clamp(p.wear - 16); }
-  if (k === 'ersAttack') { if (p.ers >= 15) { bonus = 3; p.ers -= 15; p.stats.ersUsed += 15; } }
-  if (k === 'hold') { raw = 0; bonus = 0; p.ers = clamp(p.ers + 8); }
-  if (k === 'defend') { bonus = 2; p.wear = clamp(p.wear - 8); }
-  if (k === 'hardDefend') { bonus = 4; p.wear = clamp(p.wear - 16); }
-  if (k === 'ersDef') { if (p.ers >= 15) { bonus = 3; p.ers -= 15; p.stats.ersUsed += 15; } }
-  if (k === 'noFight') { raw = 0; bonus = 0; }
-  return { raw, bonus, score: raw + bonus };
+function duelBase(room,p,k) {
+  let raw=roll(6),bonus=0,risk=false;
+  if(k==='inside'||k==='outside'){bonus=2;p.wear=clamp(p.wear-8);}
+  if(k==='cutback'){bonus=1;p.wear=clamp(p.wear-5);}
+  if(k==='ersAttack'||k==='ersDef'){if(p.ers>=15){bonus=3;p.ers-=15;p.stats.ersUsed+=15;}}
+  if(k==='coverInside'||k==='coverOutside'){bonus=2;p.wear=clamp(p.wear-7);}
+  if(k==='lateBrake'){bonus=3;p.wear=clamp(p.wear-13);risk=true;}
+  if(k==='noFight'){raw=0;bonus=0;}
+  return {raw,bonus,risk};
+}
+function duelMatchup(ac,dc){
+  let a=0,d=0,label='NEUTRO';
+  if(ac==='inside'&&dc==='coverInside'){d+=2;label='INTERNO COPERTO';}
+  else if(ac==='inside'&&dc==='coverOutside'){a+=2;label='VARCO INTERNO';}
+  else if(ac==='outside'&&dc==='coverOutside'){d+=2;label='ESTERNO COPERTO';}
+  else if(ac==='outside'&&dc==='coverInside'){a+=2;label='VARCO ESTERNO';}
+  else if(ac==='cutback'&&dc==='lateBrake'){a+=2;label='CUTBACK PERFETTO';}
+  else if(ac==='cutback'&&(dc==='coverInside'||dc==='coverOutside')){d+=1;label='DIFESA COMPATTA';}
+  else if(dc==='lateBrake'&&(ac==='inside'||ac==='outside')){d+=1;label='FRENATA TARDIVA';}
+  return {a,d,label};
 }
 function maybeResolveDuel(room) {
-  if (room.closeVote || room.sessionCloseFinalizing) return;
-  if (room.phase !== 'duel' || !room.duel) return;
-  const { attackerId, defenderId, choices } = room.duel;
-  if (!choices[attackerId] || !choices[defenderId]) return;
-  const a = room.players.find(p => p.id === attackerId), d = room.players.find(p => p.id === defenderId);
-  const ac = choices[attackerId], dc = choices[defenderId];
-  const ar = duelScore(room, a, ac), dr = duelScore(room, d, dc);
-  const as = ar.score, ds = dr.score;
-  let winner = 'defender';
-  if (ac === 'hold') winner = 'defender';
-  else if (dc === 'noFight' || as > ds) {
-    a.progress += 1; winner = 'attacker'; a.stats.duelW++; d.stats.duelL++; a.stats.passes++; log(room, `⚔️ ${a.name} supera ${d.name}.`);
-  } else {
-    d.stats.duelW++; a.stats.duelL++; log(room, `⚔️ ${d.name} difende su ${a.name}.`);
-  }
-  const risky = ['aggressive', 'hardDefend'];
-  const contact = ac !== 'hold' && dc !== 'noFight' && (risky.includes(ac) || risky.includes(dc)) && Math.random() < .14;
-  if (contact) { room.safetyTurns = 2; compressField(room); log(room, '🟡 Contatto! Safety Car per 2 turni.'); }
-  room.duel.result = { attackerChoice: ac, defenderChoice: dc, attackerRoll: ar.raw, defenderRoll: dr.raw, attackerBonus: ar.bonus, defenderBonus: dr.bonus, attackerScore: as, defenderScore: ds, winner, contact };
-  room.duelCooldown = 2;
-  room.phase = 'duel_result';
-  room.deadline = null;
-  touch(room);
-  broadcast(room, 'duel_resolution', pid => ({ viewerId: pid, ...room.duel.result, attackerId, defenderId, attackerName: a.name, defenderName: d.name }));
-  broadcast(room);
-  setTimeout(() => {
-    if (room.closeVote) { room.closeVote.pendingTransition = 'startTurn'; return; }
-    if (room.status === 'racing') startTurn(room);
-  }, DUEL_RESULT_DELAY_MS);
+  if(room.closeVote||room.sessionCloseFinalizing||room.phase!=='duel'||!room.duel)return;
+  const {attackerId,defenderId,choices}=room.duel;if(!choices[attackerId]||!choices[defenderId])return;
+  const a=room.players.find(p=>p.id===attackerId),d=room.players.find(p=>p.id===defenderId),ac=choices[attackerId],dc=choices[defenderId];
+  const ar=duelBase(room,a,ac),dr=duelBase(room,d,dc),match=duelMatchup(ac,dc);
+  ar.bonus+=match.a; dr.bonus+=match.d + Math.max(0,Math.round(currentCircuit(room).passDifficulty*2));
+  const as=ar.raw+ar.bonus,ds=dr.raw+dr.bonus; let winner='defender';
+  if(dc==='noFight'||as>ds){a.progress+=1;winner='attacker';a.stats.duelW++;d.stats.duelL++;a.stats.passes++;log(room,`⚔️ ${a.name} supera ${d.name} · ${match.label}.`);}
+  else {d.stats.duelW++;a.stats.duelL++;log(room,`⚔️ ${d.name} difende su ${a.name} · ${match.label}.`);}
+  const risky=ar.risk||dr.risk; const contact=dc!=='noFight'&&risky&&Math.random()<.20;
+  let damage=null;
+  if(contact){room.safetyTurns=2;compressField(room);const victim=Math.random()<.5?a:d;if(Math.random()<.55){victim.damage='wing';damage={playerId:victim.id,type:'wing'};log(room,`🛠️ ${victim.name}: ala danneggiata, -1 ritmo fino al pit.`);}log(room,'🟡 Contatto! Safety Car per 2 turni.');}
+  room.duel.result={attackerChoice:ac,defenderChoice:dc,attackerRoll:ar.raw,defenderRoll:dr.raw,attackerBonus:ar.bonus,defenderBonus:dr.bonus,attackerScore:as,defenderScore:ds,winner,contact,damage,matchup:match.label};
+  room.duelCooldown=2;room.phase='duel_result';room.deadline=null;touch(room);
+  broadcast(room,'duel_resolution',pid=>({viewerId:pid,...room.duel.result,attackerId,defenderId,attackerName:a.name,defenderName:d.name}));broadcast(room);
+  setTimeout(()=>{if(room.closeVote){room.closeVote.pendingTransition='startTurn';return;}if(room.status==='racing')startTurn(room);},DUEL_RESULT_DELAY_MS);
 }
 function compressField(room) {
   const r = standings(room);
   for (let i = 1; i < r.length; i++) if (r[i - 1].progress - r[i].progress > 4) r[i].progress = r[i - 1].progress - 4;
 }
 function finishRace(room) {
-  room.status = 'finished'; room.phase = 'finished'; room.deadline = null;
-  const r = standings(room); log(room, `🏁 Bandiera a scacchi: ${r[0].name} vince!`); touch(room); broadcast(room);
+  room.status='finished';room.phase='finished';room.deadline=null;const r=standings(room);
+  const mostPass=[...room.players].sort((a,b)=>b.stats.passes-a.stats.passes)[0];
+  const duelMaster=[...room.players].sort((a,b)=>b.stats.duelW-a.stats.duelW)[0];
+  const gains=[...room.players].map((p,i)=>({p,gain:(p.startRank||i+1)-(r.findIndex(x=>x.id===p.id)+1)})).sort((a,b)=>b.gain-a.gain);
+  const strategist=[...r].sort((a,b)=>a.stats.pits-b.stats.pits || r.indexOf(a)-r.indexOf(b))[0];
+  room.awards={driverOfDay:gains[0]?.p?.id,overtakeKing:mostPass?.id,duelMaster:duelMaster?.id,bestStrategist:strategist?.id};
+  log(room,`🏁 Bandiera a scacchi: ${r[0].name} vince ${currentCircuit(room).name}!`);touch(room);broadcast(room);
 }
 
 function autoTick() {
@@ -800,6 +882,7 @@ function autoTick() {
       if (!rooms.has(code)) continue;
     }
     if (!room.deadline || t < room.deadline) continue;
+    if (room.status === 'qualifying' && room.phase === 'qualifying') { for(const p of room.players) if(!p.qualiChoice) p.qualiChoice=p.isBot?chooseBotQualifying(p):'safe'; maybeResolveQualifying(room); continue; }
     if (room.status === 'starting' && room.phase === 'lights') { beginRace(room); continue; }
     if (room.status !== 'racing') continue;
     if (room.phase === 'action') {
@@ -808,8 +891,8 @@ function autoTick() {
       broadcast(room); maybeResolveActions(room);
     } else if (room.phase === 'duel' && room.duel) {
       const a = room.players.find(p => p.id === room.duel.attackerId), d = room.players.find(p => p.id === room.duel.defenderId);
-      if (!room.duel.choices[a.id]) room.duel.choices[a.id] = 'hold';
-      if (!room.duel.choices[d.id]) room.duel.choices[d.id] = 'noFight';
+      if (!room.duel.choices[a.id]) room.duel.choices[a.id] = 'cutback';
+      if (!room.duel.choices[d.id]) room.duel.choices[d.id] = 'coverInside';
       maybeResolveDuel(room);
     }
   }
@@ -867,7 +950,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const parts = u.pathname.split('/').filter(Boolean);
-    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.9.1' });
+    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '2.0.0' });
 
     if (req.method === 'POST' && u.pathname === '/api/rooms') {
       const b = await readBody(req);
@@ -978,21 +1061,37 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'POST' && parts[3] === 'settings') {
         if (p.id !== room.hostId) return json(res, 403, { error: 'Solo host' });
         if (room.status !== 'lobby') return json(res, 409, { error: 'Solo in lobby' });
-        const laps = Number(b.maxLaps);
-        if (![3, 5, 8, 10].includes(laps)) return json(res, 400, { error: 'Numero giri non valido' });
-        room.maxLaps = laps; touch(room); broadcast(room); return json(res, 200, { ok: true });
+        if (b.maxLaps != null) {
+          const laps=Number(b.maxLaps); if(![3,5,8,10].includes(laps)) return json(res,400,{error:'Numero giri non valido'}); room.maxLaps=laps;
+        }
+        if (b.qualifyingEnabled != null) room.qualifyingEnabled=!!b.qualifyingEnabled;
+        if (b.circuitId != null) {
+          if (!CIRCUITS[b.circuitId]) return json(res,400,{error:'Circuito non valido'});
+          if (room.circuitId !== b.circuitId) {
+            room.circuitId=b.circuitId; setStartingConditions(room);
+            for (const x of room.players) { if(!x.isBot)x.ready=false; }
+            syncLobbyBots(room); log(room,`🗺️ Circuito selezionato: ${currentCircuit(room).name}. Meteo rigenerato.`);
+          }
+        }
+        touch(room); broadcast(room); return json(res,200,{ok:true});
       }
       if (req.method === 'POST' && parts[3] === 'start') {
         if (p.id !== room.hostId) return json(res, 403, { error: 'Solo host' });
         syncLobbyBots(room);
         if (room.players.length !== MAX_PLAYERS) return json(res, 409, { error: 'La griglia deve avere 6 piloti' });
         if (room.players.some(x => !x.isBot && !x.ready)) return json(res, 409, { error: 'Non tutti i giocatori umani sono READY' });
-        prepareRace(room); return json(res, 200, { ok: true });
+        if (room.qualifyingEnabled) prepareQualifying(room); else prepareRace(room); return json(res, 200, { ok: true });
       }
       if (req.method === 'POST' && parts[3] === 'rematch') {
         if (p.id !== room.hostId) return json(res, 403, { error: 'Solo host' });
         if (room.status !== 'finished') return json(res, 409, { error: 'La gara non è finita' });
         resetRoomToLobby(room); return json(res, 200, { ok: true });
+      }
+      if (req.method === 'POST' && parts[3] === 'qualifying') {
+        if (room.status !== 'qualifying' || room.phase !== 'qualifying') return json(res,409,{error:'Qualifica non attiva'});
+        if (p.qualiChoice) return json(res,409,{error:'Scelta qualifica già bloccata'});
+        if (!['safe','push','max'].includes(b.choice)) return json(res,400,{error:'Scelta qualifica non valida'});
+        p.qualiChoice=b.choice; touch(room); broadcast(room); maybeResolveQualifying(room); return json(res,200,{ok:true});
       }
       if (req.method === 'POST' && parts[3] === 'pit-plan') {
         if (room.status !== 'racing') return json(res, 409, { error: 'Il pit si programma durante la gara' });
@@ -1021,7 +1120,7 @@ const server = http.createServer(async (req, res) => {
         if (![room.duel.attackerId, room.duel.defenderId].includes(p.id)) return json(res, 403, { error: 'Non sei nel duello' });
         if (room.duel.choices[p.id]) return json(res, 409, { error: 'Scelta già bloccata' });
         const role = p.id === room.duel.attackerId ? 'attack' : 'defend';
-        const allowed = role === 'attack' ? ['attack', 'aggressive', 'ersAttack', 'hold'] : ['defend', 'hardDefend', 'ersDef', 'noFight'];
+        const allowed = role === 'attack' ? ['inside','outside','cutback','ersAttack'] : ['coverInside','coverOutside','lateBrake','ersDef','noFight'];
         if (!allowed.includes(b.choice)) return json(res, 400, { error: 'Scelta non valida' });
         if ((b.choice === 'ersAttack' || b.choice === 'ersDef') && p.ers < 15) return json(res, 409, { error: `ERS insufficiente: serve 15%, hai ${Math.round(p.ers)}%` });
         room.duel.choices[p.id] = b.choice; touch(room); broadcast(room); maybeResolveDuel(room);
@@ -1038,7 +1137,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🏁 Race Command Web 1.9.1 avviato`);
+  console.log(`\n🏁 Race Command Web 2.0.0 avviato`);
   console.log(`   Locale: http://localhost:${PORT}`);
   const nets = os.networkInterfaces();
   for (const arr of Object.values(nets)) for (const n of arr || []) if (n.family === 'IPv4' && !n.internal) console.log(`   Wi-Fi/LAN: http://${n.address}:${PORT}`);

@@ -1,8 +1,8 @@
 {
   "name": "race-command-web",
-  "version": "1.9.1",
+  "version": "2.0.0",
   "private": true,
-  "description": "Race Command 1.9.1 - true widescreen 3-column race dashboard, always-visible dice resolution and one-click GitHub updater",
+  "description": "Race Command 2.0 - circuit selection, dynamic track wetness, quick qualifying, strategic duels, bot personalities, undercut and damage",
   "engines": {
     "node": ">=22"
   },
@@ -10,10 +10,11 @@
     "start": "node server.js",
     "test": "node test-smoke.js",
     "test:full": "node test-full-game.js",
-    "test:all": "node test-smoke.js && node test-session-close.js && node test-live-exit.js && node test-full-game.js && node test-balance.js && node test-release.js",
+    "test:all": "node test-smoke.js && node test-session-close.js && node test-live-exit.js && node test-v2-gameplay.js && node test-full-game.js && node test-balance.js && node test-release.js",
     "test:balance": "node test-balance.js",
     "test:close": "node test-session-close.js",
     "test:live-exit": "node test-live-exit.js",
-    "test:release": "node test-release.js"
+    "test:release": "node test-release.js",
+    "test:v2": "node test-v2-gameplay.js"
   }
 }

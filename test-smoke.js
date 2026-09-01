@@ -52,7 +52,7 @@ function composition(s) { return [s.players.filter(p=>!p.isBot).length, s.player
     await request(`/api/rooms/${soloCode}/ready`,{playerId:solo,ready:false,tyre:'W'});
     s=await state(soloCode,solo); assert(s.me.tyre==='W' && !s.me.ready,'pre-room Wet selection must persist before READY');
     const lobbyWeather=s.weather.name;
-    await request(`/api/rooms/${soloCode}/settings`,{playerId:solo,maxLaps:3});
+    await request(`/api/rooms/${soloCode}/settings`,{playerId:solo,maxLaps:3,qualifyingEnabled:false});
     await request(`/api/rooms/${soloCode}/ready`,{playerId:solo,ready:true,tyre:'W'});
     x=await request(`/api/rooms/${soloCode}/start`,{playerId:solo}); assert(x.r.ok,'solo start with bots');
     await sleep(700);
@@ -74,6 +74,7 @@ function composition(s) { return [s.players.filter(p=>!p.isBot).length, s.player
     x=await request('/api/rooms',{name:'Andre'}); const c2=x.j.code,p1=x.j.playerId;
     x=await request(`/api/rooms/${c2}/join`,{name:'Bimba'}); const p2=x.j.playerId;
     s=await state(c2,p1); assert(composition(s).join(',')==='2,4','2 humans + 4 bots');
+    await request(`/api/rooms/${c2}/settings`,{playerId:p1,qualifyingEnabled:false});
     await request(`/api/rooms/${c2}/ready`,{playerId:p1,ready:true,tyre:'M'});
     await request(`/api/rooms/${c2}/ready`,{playerId:p2,ready:true,tyre:'S'});
     x=await request(`/api/rooms/${c2}/start`,{playerId:p1}); assert(x.r.ok,'2-human start');
@@ -88,7 +89,7 @@ function composition(s) { return [s.players.filter(p=>!p.isBot).length, s.player
     s=await state(c2,p1); assert(s.turn>=1,'2-human turn did not resolve');
     assert(s.players.length===6,'2-human race must keep six cars');
 
-    console.log('✅ Race Command 1.7 smoke test OK', { autoGrid:'1+5 → 6+0', soloRace:true, twoHumanRace:true, code:c2 });
+    console.log('✅ Race Command 2.0 smoke test OK', { autoGrid:'1+5 → 6+0', soloRace:true, twoHumanRace:true, code:c2 });
     process.exitCode=0;
   } catch(e) {
     console.error('❌ Smoke test failed:',e.message); console.error(output); process.exitCode=1;

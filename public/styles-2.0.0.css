@@ -330,3 +330,21 @@
   .raceControlsPanel .small{font-size:10px}
   .actionGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 }
+
+/* =============================================================
+   Race Command 2.0 — strategy/gameplay additions
+   ============================================================= */
+.sectorStroke{fill:none;stroke-width:7;opacity:.82;stroke-linecap:round;pointer-events:none}
+.sectorStroke.s1{stroke:var(--green);stroke-dasharray:8 22;stroke-dashoffset:0}
+.sectorStroke.s2{stroke:var(--yellow);stroke-dasharray:9 21;stroke-dashoffset:-10}
+.sectorStroke.s3{stroke:var(--accent);stroke-dasharray:9 21;stroke-dashoffset:-20}
+.trackWrap.drsLive .sectorStroke.s1{stroke-width:10;opacity:1;filter:drop-shadow(0 0 8px rgba(53,183,121,.85));animation:drsGlow .75s ease-in-out infinite alternate}
+.lobbyV2 .preRaceSetup{display:flex;flex-direction:column;gap:10px}
+.setupGrid{display:grid;grid-template-columns:1.2fr .8fr;gap:9px}.settingsCard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px}.settingsCard select{width:100%;margin-top:7px;background:#171c23;color:var(--text);border:1px solid var(--border);border-radius:9px;padding:9px;font-weight:800}.circuitTraits{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0 5px}.circuitTraits span{font-size:9px;font-weight:900;border:1px solid var(--border);border-radius:999px;padding:4px 6px;color:var(--muted)}
+.toggleSetting{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:10px;font-weight:900;color:var(--text)}.toggleSetting input{accent-color:var(--accent)}
+.trackStateRow,.trackStateMini{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid var(--border);background:rgba(255,255,255,.025);border-radius:9px;padding:7px 9px;margin-top:8px;font-size:10px}.trackStateRow b{font-size:11px}.trackStateMini{justify-content:flex-start;font-weight:900;color:var(--text);padding:5px 7px}
+.qualiCard{width:min(850px,calc(100vw - 24px))}.qualiChoices{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}.qualiChoices button{min-height:118px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:15px;padding:14px;cursor:pointer}.qualiChoices b{display:block;font-size:20px}.qualiChoices small{display:block;color:var(--muted);margin-top:7px}.qualiResults{display:grid;gap:6px;margin-top:18px}.qualiRow{display:grid;grid-template-columns:46px 1fr auto;gap:8px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px}.qualiRow.me{outline:1px solid var(--accent)}.qualiRow em{font-style:normal;color:var(--muted);font-size:11px;font-weight:900}.waiting span{display:block;margin-top:7px;color:var(--muted)}
+.matchupBanner{margin-top:8px;text-align:center;border:1px solid var(--yellow);color:var(--yellow);border-radius:999px;padding:6px 9px;font-size:10px;font-weight:950;letter-spacing:.06em}
+.awardsGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px}.awardsGrid>div{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:9px}.awardsGrid span{display:block;color:var(--muted);font-size:9px;font-weight:900}.awardsGrid b{display:block;margin-top:4px}
+.damageWarning{color:var(--yellow);font-size:9px;font-weight:900;margin-top:4px}
+@media(max-width:720px){.setupGrid,.qualiChoices,.awardsGrid{grid-template-columns:1fr}.qualiChoices button{min-height:82px}}

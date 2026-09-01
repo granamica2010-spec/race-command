@@ -22,6 +22,7 @@ function assert(x,m){if(!x)throw new Error(m)}
   await req(`/api/rooms/${a.code}/close-request`,{playerId:a.playerId}); await req(`/api/rooms/${a.code}/close-vote`,{playerId:b.playerId,choice:'yes'}); z=await state(a.code,a.playerId); assert(z.r.status===410,'all YES must permanently close room');
   // Pause/resume during an active action phase.
   a=(await req('/api/rooms',{name:'A'})).j; b=(await req(`/api/rooms/${a.code}/join`,{name:'B'})).j;
+  await req(`/api/rooms/${a.code}/settings`,{playerId:a.playerId,qualifyingEnabled:false});
   await req(`/api/rooms/${a.code}/ready`,{playerId:a.playerId,ready:true,tyre:'M'}); await req(`/api/rooms/${a.code}/ready`,{playerId:b.playerId,ready:true,tyre:'H'}); await req(`/api/rooms/${a.code}/start`,{playerId:a.playerId});
   for(let i=0;i<8;i++){await sleep(180);s=(await state(a.code,a.playerId)).j;if(s.status==='racing'&&s.phase==='action')break} assert(s.phase==='action','race action phase expected');
   const turn=s.turn; await req(`/api/rooms/${a.code}/close-request`,{playerId:a.playerId}); s=(await state(a.code,b.playerId)).j; assert(s.deadline===null,'gameplay deadline must pause'); await sleep(650); s=(await state(a.code,b.playerId)).j; assert(s.turn===turn,'turn must not advance while vote open');
