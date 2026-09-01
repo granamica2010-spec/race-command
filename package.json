@@ -1,8 +1,8 @@
 {
   "name": "race-command-web",
-  "version": "1.7.3",
+  "version": "1.8.0",
   "private": true,
-  "description": "Race Command 1.7.3 - game feel update with animated dice, weather FX, live race events and one-click GitHub updater",
+  "description": "Race Command 1.8.0 - layout & UX update with always-visible dice resolution, compact race dashboard and one-click GitHub updater",
   "engines": {
     "node": ">=22"
   },

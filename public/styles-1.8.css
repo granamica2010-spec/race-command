@@ -45,3 +45,80 @@
 .duelDiceReveal{margin-top:11px;display:grid;grid-template-columns:72px 1fr 72px;align-items:center;gap:8px;text-align:center;min-height:66px}.duelDiceReveal>div{height:64px;border:1px solid var(--border);background:var(--panel);border-radius:13px;display:grid;grid-template-columns:1fr 1fr;align-items:center;padding:7px}.duelDiceReveal>div span{grid-column:1/-1;color:var(--muted);font-size:8px;font-weight:950}.duelDiceReveal>div b{font-size:25px}.duelDiceReveal>div small{font-size:10px;color:var(--green);font-weight:950}.duelDiceReveal strong{font-size:25px}.duelDiceReveal em{grid-column:1/-1;color:var(--muted);font-style:normal;font-weight:900}.duelDiceReveal.rollingReveal>div{animation:duelDiceKick .4s ease both}@keyframes duelDiceKick{0%{transform:rotate(-6deg) translateY(9px) scale(.86)}60%{transform:rotate(4deg) translateY(-5px) scale(1.06)}100%{transform:none}}
 @media(max-width:560px){.resolutionTop{display:grid}.turnPipeline{justify-content:flex-start}.diceStage{height:92px}.diceShell{width:62px;height:62px}.diceShell span{font-size:25px}.raceEventSplash{top:12%;font-size:11px;max-width:92vw;text-align:center}.duelDiceReveal{grid-template-columns:62px 1fr 62px}.duelDiceReveal strong{font-size:21px}.soundToggle{min-height:30px;padding:0 8px}}
 @media(prefers-reduced-motion:reduce){.diceShell,.weatherFx,.trackWrap.drsLive .s1,.car.overtakeCar circle,.duelDiceReveal>div{animation:none!important}.battleCar,.resolutionMods .modChip,.raceEventSplash{transition:none!important}}
+
+/* Race Command Web 1.8 — Layout & UX Update
+   Desktop goal: core race UI fits in one viewport; turn resolution is always visible. */
+@media (min-width: 900px) {
+  html,body{height:100%;overflow:hidden}
+  .app{width:min(1540px,calc(100vw - 18px));height:100vh;padding:9px 0;display:flex;flex-direction:column}
+  .topbar{flex:0 0 auto;min-height:48px;margin-bottom:7px}
+  .topbar h2{font-size:20px;line-height:1.05}
+  .brand{font-size:10px}
+  .badge{padding:5px 8px;font-size:10px}
+  .soundToggle{min-height:28px}
+  .raceLayout{min-height:0;flex:1;grid-template-columns:minmax(390px,.72fr) minmax(690px,1.55fr);gap:9px}
+  .raceLayout>.panel{min-height:0;padding:9px;border-radius:14px}
+
+  /* Left control deck: use the width, not an endlessly tall column. */
+  .raceControlsPanel{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start;overflow:hidden}
+  .raceControlsPanel>.stats{grid-column:1/-1;gap:6px}
+  .raceControlsPanel>.card{margin-top:0!important;padding:8px 9px;border-radius:11px;min-width:0}
+  .raceControlsPanel>.stats .card{padding:8px 9px}
+  .raceControlsPanel>.stats .big{font-size:25px;margin-top:2px}
+  .raceControlsPanel>.card:nth-child(6),
+  .raceControlsPanel>.card:nth-child(7){grid-column:1/-1}
+  .raceControlsPanel .big{font-size:25px}
+  .raceControlsPanel .small{font-size:9px;line-height:1.25}
+  .raceControlsPanel .ey{font-size:9px}
+  .raceControlsPanel .ring{width:31px;height:31px;border-width:4px;font-size:11px}
+  .raceControlsPanel .bar{height:6px}
+  .raceControlsPanel .sectorCard{margin-top:0}
+  .raceControlsPanel .forecast{grid-template-columns:repeat(4,1fr);gap:4px;margin-top:5px}
+  .raceControlsPanel .forecast div{padding:3px 2px;border-radius:7px;font-size:8px}
+  .raceControlsPanel .forecast b{font-size:13px;margin:0}
+  .raceControlsPanel .pitPlanCard .btn{min-height:34px;padding:0 9px;font-size:10px}
+  .raceControlsPanel .actionGrid{gap:5px;margin-top:6px}
+  .raceControlsPanel .action{min-height:48px;padding:5px 7px;font-size:11px}
+  .raceControlsPanel .action small{font-size:8px;margin-top:1px}
+  .raceControlsPanel .confirmAction{min-height:38px;margin-top:6px;font-size:11px}
+  .raceControlsPanel .lockCount{margin-top:4px!important}
+
+  /* Track deck occupies the remaining height with its own compact regions. */
+  .raceTrackPanel{display:grid;grid-template-rows:minmax(270px,1fr) auto minmax(72px,110px);gap:6px;overflow:hidden}
+  .raceTrackPanel>.trackWrap{height:100%;min-height:0;padding:5px}
+  .raceTrackPanel>.trackWrap svg{height:100%;width:100%;object-fit:contain}
+  .raceTrackPanel>.rank{margin-top:0;gap:3px;grid-template-columns:1fr 1fr}
+  .raceTrackPanel .rankRow{min-height:45px;padding:5px 7px;border-radius:8px;grid-template-columns:22px 9px 1fr auto}
+  .raceTrackPanel .rankRow .small{font-size:9px}
+  .raceTrackPanel>div:last-child{margin-top:0!important;min-height:0;overflow:hidden}
+  .raceTrackPanel .feed{max-height:80px;margin-top:4px;gap:3px}
+  .raceTrackPanel .feed div{padding:4px 6px;font-size:9px;border-radius:7px}
+
+  /* The dice is a broadcast overlay: never below the fold, never requires scrolling. */
+  .resolution.show{position:fixed;z-index:205;left:50%;top:50%;transform:translate(-50%,-50%);display:block;width:min(440px,calc(100vw - 28px));margin:0!important;padding:12px 14px;pointer-events:none;border-color:rgba(229,72,77,.62);box-shadow:0 24px 80px rgba(0,0,0,.58),0 0 0 9999px rgba(6,8,11,.16);backdrop-filter:blur(12px);animation:resolutionBroadcastIn .18s ease-out both}
+  .resolution.show .diceStage{height:92px}
+  .resolution.show .diceShell{width:66px;height:66px}
+  .resolution.show .totalPace b{font-size:31px}
+}
+
+@keyframes resolutionBroadcastIn{from{opacity:0;transform:translate(-50%,-46%) scale(.94)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+
+/* Medium-height laptops: tighten a little more rather than forcing page scrolling. */
+@media (min-width:900px) and (max-height:820px){
+  .app{padding-top:5px;padding-bottom:5px}
+  .topbar{min-height:42px;margin-bottom:5px}
+  .raceControlsPanel>.card,.raceControlsPanel>.stats .card{padding:6px 8px}
+  .raceControlsPanel .action{min-height:42px}
+  .raceControlsPanel .forecast div{padding:2px}
+  .raceTrackPanel{grid-template-rows:minmax(235px,1fr) auto 72px}
+  .raceTrackPanel .rankRow{min-height:39px}
+  .raceTrackPanel .feed{max-height:58px}
+}
+
+/* Mobile/tablet remains scrollable, but actions stay within reach and dice still floats. */
+@media (max-width:899px){
+  html,body{overflow:auto}
+  .raceControlsPanel{display:block}
+  .raceControlsPanel>.card{margin-top:8px!important}
+  .resolution.show{position:fixed;z-index:205;left:50%;top:48%;transform:translate(-50%,-50%);display:block;width:min(430px,calc(100vw - 20px));margin:0!important;padding:11px;pointer-events:none;box-shadow:0 20px 70px rgba(0,0,0,.62),0 0 0 9999px rgba(6,8,11,.18);animation:resolutionBroadcastIn .18s ease-out both}
+}

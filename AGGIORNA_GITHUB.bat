@@ -84,7 +84,7 @@ rem Il clone e nuovo, quindi rimuoviamo i file tracciati della build precedente.
 rem La cartella .git resta intatta.
 git rm -r -f . >nul 2>&1
 
-echo [2/4] Copio Race Command 1.7.3 nel repository...
+echo [2/4] Copio Race Command 1.8 nel repository...
 rem IMPORTANTE: la copia complessa e in un file .ps1 separato.
 rem In questo modo cmd.exe non puo alterare la sintassi PowerShell.
 set "RC_SOURCE=%SOURCE%"
@@ -106,7 +106,7 @@ if errorlevel 1 goto :FAIL
 
 git diff --cached --quiet
 if errorlevel 1 (
-  git commit -m "Race Command v1.7.3 - aggiornamento automatico"
+  git commit -m "Race Command v1.8 - aggiornamento automatico"
   if errorlevel 1 goto :FAIL
 ) else (
   echo [INFO] GitHub contiene gia gli stessi file: nessun nuovo commit necessario.
@@ -118,7 +118,7 @@ if errorlevel 1 goto :GIT_AUTH_FAIL
 
 echo.
 echo ============================================================
-echo   FATTO: Race Command 1.7.3 e stato inviato su GitHub.
+echo   FATTO: Race Command 1.8 e stato inviato su GitHub.
 echo ============================================================
 echo.
 echo Se Render usa Auto-Deploy ^(On Commit^), il deploy parte da solo.

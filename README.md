@@ -1,6 +1,11 @@
-# Race Command Web 1.7.3
+# Race Command Web 1.8
 
 Race Command è un party strategy game di corse multiplayer da browser, pensato soprattutto per smartphone ma giocabile anche da tablet e PC.
+
+## Novità 1.8 — Layout & UX
+
+La schermata gara desktop ora usa tutto lo spazio disponibile senza trasformarsi in una pagina lunga: il pannello strategico è compatto, la classifica usa due colonne e Race Control scorre internamente. Il lancio del dado appare in un overlay centrale sempre visibile, quindi non serve più usare la rotella del mouse per vedere la risoluzione del turno.
+
 
 ## Novità 1.7 — Game Feel Update
 
@@ -144,10 +149,10 @@ Apri:
 La build 1.7 corretta deve mostrare:
 
 ```json
-{"ok":true,"version":"1.7.3"}
+{"ok":true,"version":"1.8.0"}
 ```
 
-Durante la gara compare anche il badge `v1.7.3`.
+Durante la gara compare anche il badge `v1.8.0`.
 
 ## Test automatici
 
@@ -166,6 +171,6 @@ Durante la gara compare anche il badge `v1.7.3`.
 
 Le stanze vivono nella memoria del processo Node. Un riavvio o redeploy dell'host elimina le partite attive. È una scelta adatta all'uso hobby/privato attuale e mantiene l'architettura semplice; una versione con persistenza delle sessioni richiederebbe uno storage esterno.
 
-### Updater GitHub 1.7.3
+### Updater GitHub 1.8.0
 
-Se una versione precedente mostrava il prompt PowerShell `Destination:`, la 1.7.3 elimina quel problema: i percorsi non vengono più passati come parametri della riga di comando.
+Se una versione precedente mostrava il prompt PowerShell `Destination:`, la 1.8.0 elimina quel problema: i percorsi non vengono più passati come parametri della riga di comando.
