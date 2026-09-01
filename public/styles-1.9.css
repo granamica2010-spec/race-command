@@ -46,7 +46,7 @@
 @media(max-width:560px){.resolutionTop{display:grid}.turnPipeline{justify-content:flex-start}.diceStage{height:92px}.diceShell{width:62px;height:62px}.diceShell span{font-size:25px}.raceEventSplash{top:12%;font-size:11px;max-width:92vw;text-align:center}.duelDiceReveal{grid-template-columns:62px 1fr 62px}.duelDiceReveal strong{font-size:21px}.soundToggle{min-height:30px;padding:0 8px}}
 @media(prefers-reduced-motion:reduce){.diceShell,.weatherFx,.trackWrap.drsLive .s1,.car.overtakeCar circle,.duelDiceReveal>div{animation:none!important}.battleCar,.resolutionMods .modChip,.raceEventSplash{transition:none!important}}
 
-/* Race Command Web 1.8 — Layout & UX Update
+/* Race Command Web 1.9 — Layout & UX Update
    Desktop goal: core race UI fits in one viewport; turn resolution is always visible. */
 @media (min-width: 900px) {
   html,body{height:100%;overflow:hidden}
@@ -121,4 +121,127 @@
   .raceControlsPanel{display:block}
   .raceControlsPanel>.card{margin-top:8px!important}
   .resolution.show{position:fixed;z-index:205;left:50%;top:48%;transform:translate(-50%,-50%);display:block;width:min(430px,calc(100vw - 20px));margin:0!important;padding:11px;pointer-events:none;box-shadow:0 20px 70px rgba(0,0,0,.62),0 0 0 9999px rgba(6,8,11,.18);animation:resolutionBroadcastIn .18s ease-out both}
+}
+
+/* =============================================================
+   Race Command 1.9 — TRUE WIDESCREEN DESKTOP LAYOUT
+   Uses the whole horizontal viewport: controls | circuit | live sidebar.
+   ============================================================= */
+@media (min-width:1200px){
+  html,body,#app{width:100%;height:100%;max-width:none;overflow:hidden}
+  .raceApp{
+    width:calc(100vw - 20px)!important;
+    max-width:none!important;
+    height:100dvh!important;
+    margin:0 10px!important;
+    padding:8px 0!important;
+    display:flex!important;
+    flex-direction:column;
+  }
+  .raceTopbar{flex:0 0 48px;min-height:48px;margin:0 4px 7px;padding:0 4px}
+  .raceLayoutWide{
+    flex:1;
+    min-height:0;
+    width:100%;
+    display:grid!important;
+    grid-template-columns:minmax(340px,22vw) minmax(620px,1fr) minmax(300px,20vw)!important;
+    grid-template-rows:minmax(0,1fr);
+    gap:8px!important;
+    align-items:stretch;
+  }
+  .raceLayoutWide>.panel,.raceSidebar>.panel{min-width:0;min-height:0}
+
+  /* LEFT: all controls in a compact dashboard, not one long web page. */
+  .raceControlsPanel{
+    height:100%;
+    display:grid!important;
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:auto auto auto auto minmax(170px,1fr);
+    gap:6px!important;
+    padding:8px!important;
+    overflow:hidden!important;
+    align-content:stretch!important;
+  }
+  .raceControlsPanel>.stats{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .raceControlsPanel>.card{margin:0!important;padding:8px 9px!important;border-radius:10px!important;min-height:0}
+  .raceControlsPanel .tyreStatusCard,.raceControlsPanel .ersStatusCard{grid-column:auto}
+  .raceControlsPanel .sectorCard,.raceControlsPanel .weatherCard{grid-column:auto}
+  .raceControlsPanel .pitPlanCard{grid-column:1/-1}
+  .raceControlsPanel .actionCard{grid-column:1/-1;align-self:stretch;display:flex;flex-direction:column;justify-content:flex-start}
+  .raceControlsPanel .stats .card{padding:7px 9px!important}
+  .raceControlsPanel .big{font-size:26px!important;margin-top:2px}
+  .raceControlsPanel #countdown{font-size:26px!important}
+  .raceControlsPanel .ey{font-size:9px}
+  .raceControlsPanel .small{font-size:9px;line-height:1.25}
+  .raceControlsPanel .ring{width:31px;height:31px;border-width:4px;font-size:11px}
+  .raceControlsPanel .bar{height:6px}
+  .raceControlsPanel .weatherNow{font-size:16px!important}
+  .raceControlsPanel .forecast{grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;margin-top:5px}
+  .raceControlsPanel .forecast div{padding:3px 1px;font-size:8px;border-radius:7px}
+  .raceControlsPanel .forecast b{font-size:13px;margin:0}
+  .pitPlanRow{align-items:center!important;flex-wrap:nowrap!important;gap:8px}
+  .pitPlanRow>div:first-child{min-width:0;flex:1}
+  .pitPlanActions{display:flex;gap:5px;flex:0 0 auto}
+  .pitPlanActions .btn{min-height:32px!important;padding:0 8px!important;font-size:9px}
+  .actionGrid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important;margin-top:6px!important}
+  .raceControlsPanel .action{min-height:54px!important;padding:6px 4px!important;font-size:10px!important}
+  .raceControlsPanel .action small{font-size:8px!important;line-height:1.15;margin-top:2px}
+  .raceControlsPanel .confirmAction{min-height:38px!important;margin-top:6px!important;font-size:10px}
+  .raceControlsPanel .lockCount{margin-top:4px!important}
+
+  /* CENTER: circuit gets the majority of the screen. */
+  .raceTrackPanel{
+    height:100%;
+    display:grid!important;
+    grid-template-rows:auto minmax(0,1fr)!important;
+    gap:6px!important;
+    padding:8px!important;
+    overflow:hidden!important;
+  }
+  .trackHeader,.sidebarTitle{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px}
+  .trackHeader>b,.sidebarTitle>b{font-size:12px}
+  .trackMiniStatus{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+  .trackMiniStatus span{border:1px solid var(--border);background:var(--card);border-radius:999px;padding:5px 8px;font-size:9px;font-weight:900;color:var(--muted)}
+  .raceTrackPanel>.trackWrap{height:100%!important;min-height:0!important;padding:6px!important;display:grid;place-items:center}
+  .raceTrackPanel>.trackWrap svg{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain}
+
+  /* RIGHT: ranking + race control have their own column. */
+  .raceSidebar{
+    height:100%;min-height:0;display:grid;
+    grid-template-rows:minmax(330px,1.35fr) minmax(150px,.65fr);
+    gap:8px;
+  }
+  .raceRankingPanel,.raceFeedPanel{padding:8px!important;overflow:hidden;display:flex;flex-direction:column}
+  .raceRankingPanel .rank{margin-top:6px!important;display:grid!important;grid-template-columns:1fr!important;gap:5px!important;min-height:0}
+  .raceRankingPanel .rankRow{min-height:51px!important;padding:6px 8px!important;border-radius:9px!important;grid-template-columns:24px 10px minmax(0,1fr) auto!important}
+  .raceRankingPanel .rankRow .small{font-size:9px}
+  .raceFeedPanel .feed{flex:1;min-height:0;max-height:none!important;margin-top:6px!important;overflow:auto!important;gap:4px}
+  .raceFeedPanel .feed div{font-size:9px;padding:5px 6px;border-radius:7px}
+
+  /* Broadcast dice always lands in the visual centre of the circuit area. */
+  .resolution.show{
+    left:50%!important;top:50%!important;
+    width:min(430px,30vw)!important;
+    max-width:430px;
+  }
+}
+
+/* Typical 1366px laptops: still use full width, with narrower side decks. */
+@media (min-width:1000px) and (max-width:1199px){
+  html,body,#app{width:100%;height:100%;overflow:hidden}
+  .raceApp{width:calc(100vw - 12px)!important;max-width:none!important;height:100dvh!important;margin:0 6px!important;padding:6px 0!important;display:flex!important;flex-direction:column}
+  .raceTopbar{flex:0 0 auto;margin-bottom:5px}
+  .raceLayoutWide{flex:1;min-height:0;display:grid!important;grid-template-columns:minmax(320px,35%) minmax(0,65%)!important;gap:6px!important}
+  .raceSidebar{display:none}
+  .raceControlsPanel{overflow:auto}
+  .raceTrackPanel{height:100%;display:grid!important;grid-template-rows:auto minmax(0,1fr)!important;overflow:hidden}
+  .raceTrackPanel>.trackWrap{height:100%}
+  .raceTrackPanel>.trackWrap svg{width:100%;height:100%}
+}
+
+/* On mobile/tablet return to the normal stacked flow. */
+@media (max-width:999px){
+  .raceSidebar{display:grid;gap:8px;margin-top:8px}
+  .raceTrackPanel .trackHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .trackMiniStatus{display:none}
 }

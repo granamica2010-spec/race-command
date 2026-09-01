@@ -1,4 +1,15 @@
-# Race Command v1.8 — Layout & UX Update
+# Race Command v1.9.0 — True Widescreen
+
+- Layout gara desktop completamente rifatto: 3 colonne reali `CONTROLLI | CIRCUITO | CLASSIFICA/RACE CONTROL`.
+- La schermata gara usa quasi tutto il viewport (`100vw`) invece di restare dentro una colonna centrale stretta.
+- Circuito molto più grande e sempre al centro della scena.
+- Classifica e Race Control spostati in una sidebar dedicata a destra.
+- Pannello strategia a sinistra compattato: azioni su 4 pulsanti orizzontali, meteo/pit/status redistribuiti.
+- Dado e risoluzione restano in overlay sempre visibile.
+- Layout tablet/mobile resta adattivo.
+- `AGGIORNA_GITHUB.bat` + `.ps1` inclusi e aggiornati alla v1.9.
+
+# Race Command v1.9 — Layout & UX Update
 
 - Nuovo layout desktop a viewport singolo: niente scroll globale durante la gara sui desktop/laptop standard.
 - Pannello sinistro riorganizzato su due colonne compatte: stato, gomme/ERS, settore/meteo, pit e azioni restano visibili insieme.
@@ -6,10 +17,10 @@
 - Race Control contenuto in un'area a scorrimento interno.
 - Il lancio del dado e la pipeline DADO → BONUS → MOVIMENTO ora compaiono in un overlay broadcast fisso al centro: sono visibili anche se la pagina era scorsa.
 - Overlay del dado chiuso esplicitamente al termine della sequenza.
-- Asset frontend rinominati `app-1.8.js` / `styles-1.8.css` e cache PWA aggiornata.
-- `AGGIORNA_GITHUB.bat` e relativo script PowerShell inclusi e aggiornati alla v1.8.
+- Asset frontend rinominati `app-1.9.js` / `styles-1.9.css` e cache PWA aggiornata.
+- `AGGIORNA_GITHUB.bat` e relativo script PowerShell inclusi e aggiornati alla v1.9.
 
-# Race Command v1.8.0
+# Race Command v1.9.0
 
 - Corretto `AGGIORNA_GITHUB.bat`: sostituita la copia via `robocopy` con PowerShell, più robusta con cartelle estratte da ZIP e percorsi Windows.
 - Aggiunti controlli di integrità (`server.js`, `package.json`, `public/index.html`) prima del commit.
@@ -45,10 +56,10 @@
 - Con Render Auto-Deploy `On Commit`, il push aggiorna automaticamente il sito.
 
 ## Cache e versione
-- Asset frontend rinominati `app-1.8.js` e `styles-1.8.css`.
+- Asset frontend rinominati `app-1.9.js` e `styles-1.9.css`.
 - Cache server `no-store` applicata genericamente agli asset JS/CSS versionati.
 - Service Worker aggiornato a `race-command-v1-7`.
-- `/api/health` → `version: 1.8.0`.
+- `/api/health` → `version: 1.9.0`.
 - Badge `v1.7` durante la gara.
 
 ## Test
@@ -77,7 +88,7 @@
 
 ### 1.1
 - Mappa/classifica sempre visibili durante i duelli, migliore race awareness e primo pass di bilanciamento gomme.
-## Hotfix updater GitHub 1.8.0
+## Hotfix updater GitHub 1.9.0
 
 - `AGGIORNA_GITHUB.bat` non contiene più comandi PowerShell complessi inline.
 - La copia dei file è delegata a `AGGIORNA_GITHUB.ps1`, evitando che `cmd.exe` interpreti caratteri PowerShell come `@(...)`, pipe o parentesi.
@@ -85,7 +96,7 @@
 - Nessuna modifica alle regole di gioco rispetto alla 1.7.1.
 
 
-## Hotfix updater GitHub 1.8.0
+## Hotfix updater GitHub 1.9.0
 
 - Eliminato il passaggio di `Source` e `Destination` come parametri PowerShell dalla riga di comando.
 - I percorsi vengono ora passati tramite variabili d'ambiente (`RC_SOURCE` e `RC_DESTINATION`).

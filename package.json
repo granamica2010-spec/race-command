@@ -1,8 +1,8 @@
 {
   "name": "race-command-web",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "private": true,
-  "description": "Race Command 1.8.0 - layout & UX update with always-visible dice resolution, compact race dashboard and one-click GitHub updater",
+  "description": "Race Command 1.9.0 - true widescreen 3-column race dashboard, always-visible dice resolution and one-click GitHub updater",
   "engines": {
     "node": ">=22"
   },

@@ -599,7 +599,7 @@ function actionScore(room, p, action) {
   const raw = roll(die);
   let bonus = 0, mult = 1, mods = [], pitted = false;
   if (action === 'attack') {
-    bonus += 2; mult = sectorOf(p) === 2 ? 1.8 : 1.55; mods.push('ATTACK +2');
+    bonus += 2; mult = sectorOf(p) === 2 ? 1.9 : 1.55; mods.push('ATTACK +2');
     if (sectorOf(p) === 2 && Math.random() < .10) { bonus -= 2; p.wear = clamp(p.wear - 8); mods.push('LOCK-UP -2'); log(room, `⚠️ ${p.name}: lock-up nel settore tecnico.`); }
   } else if (action === 'conserve') {
     bonus -= 1; mult = .45; p.ers = clamp(p.ers + 10); mods.push('CONSERVE -1');
@@ -647,7 +647,7 @@ function resolveActions(room) {
     let bonus = 0, mult = 1, mods = [], pitted = false;
     const action = p.selectedAction;
     if (action === 'attack') {
-      bonus += 2; mult = sectorOf(p) === 2 ? 1.8 : 1.55; mods.push('ATTACK +2');
+      bonus += 2; mult = sectorOf(p) === 2 ? 1.9 : 1.55; mods.push('ATTACK +2');
       if (sectorOf(p) === 2 && Math.random() < .10) { bonus -= 2; p.wear = clamp(p.wear - 8); mods.push('LOCK-UP -2'); log(room, `⚠️ ${p.name}: lock-up nel settore tecnico.`); }
     } else if (action === 'conserve') {
       bonus -= 1; mult = .45; p.ers = clamp(p.ers + 10); mods.push('CONSERVE -1');
@@ -867,7 +867,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const parts = u.pathname.split('/').filter(Boolean);
-    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.8.0' });
+    if (u.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size, version: '1.9.0' });
 
     if (req.method === 'POST' && u.pathname === '/api/rooms') {
       const b = await readBody(req);
@@ -1038,7 +1038,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🏁 Race Command Web 1.8.0 avviato`);
+  console.log(`\n🏁 Race Command Web 1.9.0 avviato`);
   console.log(`   Locale: http://localhost:${PORT}`);
   const nets = os.networkInterfaces();
   for (const arr of Object.values(nets)) for (const n of arr || []) if (n.family === 'IPv4' && !n.internal) console.log(`   Wi-Fi/LAN: http://${n.address}:${PORT}`);
