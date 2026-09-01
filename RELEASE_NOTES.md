@@ -1,4 +1,15 @@
-# Race Command v1.9.0 — True Widescreen
+# Race Command v1.9.1 — Layout Rebalance
+
+- Colonna controlli desktop ampliata a circa 32% del viewport.
+- Circuito centrale ridotto a circa 45%: resta protagonista senza schiacciare la strategia.
+- Sidebar live circa 23%.
+- Testi, gomme, meteo e pit strategy più leggibili.
+- Azioni NORMAL / ATTACK / CONSERVE / ERS in griglia 2×2 con pulsanti più grandi.
+- Dado/risoluzione resta in overlay fisso e sempre visibile.
+- Asset anti-cache `app-1.9.1.js` e `styles-1.9.1.css`.
+- `AGGIORNA_GITHUB.bat` incluso.
+
+# Race Command v1.9.1 — True Widescreen
 
 - Layout gara desktop completamente rifatto: 3 colonne reali `CONTROLLI | CIRCUITO | CLASSIFICA/RACE CONTROL`.
 - La schermata gara usa quasi tutto il viewport (`100vw`) invece di restare dentro una colonna centrale stretta.
@@ -17,10 +28,10 @@
 - Race Control contenuto in un'area a scorrimento interno.
 - Il lancio del dado e la pipeline DADO → BONUS → MOVIMENTO ora compaiono in un overlay broadcast fisso al centro: sono visibili anche se la pagina era scorsa.
 - Overlay del dado chiuso esplicitamente al termine della sequenza.
-- Asset frontend rinominati `app-1.9.js` / `styles-1.9.css` e cache PWA aggiornata.
+- Asset frontend rinominati `app-1.9.1.js` / `styles-1.9.1.css` e cache PWA aggiornata.
 - `AGGIORNA_GITHUB.bat` e relativo script PowerShell inclusi e aggiornati alla v1.9.
 
-# Race Command v1.9.0
+# Race Command v1.9.1
 
 - Corretto `AGGIORNA_GITHUB.bat`: sostituita la copia via `robocopy` con PowerShell, più robusta con cartelle estratte da ZIP e percorsi Windows.
 - Aggiunti controlli di integrità (`server.js`, `package.json`, `public/index.html`) prima del commit.
@@ -56,10 +67,10 @@
 - Con Render Auto-Deploy `On Commit`, il push aggiorna automaticamente il sito.
 
 ## Cache e versione
-- Asset frontend rinominati `app-1.9.js` e `styles-1.9.css`.
+- Asset frontend rinominati `app-1.9.1.js` e `styles-1.9.1.css`.
 - Cache server `no-store` applicata genericamente agli asset JS/CSS versionati.
 - Service Worker aggiornato a `race-command-v1-7`.
-- `/api/health` → `version: 1.9.0`.
+- `/api/health` → `version: 1.9.1`.
 - Badge `v1.7` durante la gara.
 
 ## Test
@@ -88,7 +99,7 @@
 
 ### 1.1
 - Mappa/classifica sempre visibili durante i duelli, migliore race awareness e primo pass di bilanciamento gomme.
-## Hotfix updater GitHub 1.9.0
+## Hotfix updater GitHub 1.9.1
 
 - `AGGIORNA_GITHUB.bat` non contiene più comandi PowerShell complessi inline.
 - La copia dei file è delegata a `AGGIORNA_GITHUB.ps1`, evitando che `cmd.exe` interpreti caratteri PowerShell come `@(...)`, pipe o parentesi.
@@ -96,7 +107,7 @@
 - Nessuna modifica alle regole di gioco rispetto alla 1.7.1.
 
 
-## Hotfix updater GitHub 1.9.0
+## Hotfix updater GitHub 1.9.1
 
 - Eliminato il passaggio di `Source` e `Destination` come parametri PowerShell dalla riga di comando.
 - I percorsi vengono ora passati tramite variabili d'ambiente (`RC_SOURCE` e `RC_DESTINATION`).

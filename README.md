@@ -1,4 +1,13 @@
-# Race Command Web 1.9
+# Race Command Web 1.9.1
+
+## Novità 1.9.1 — Layout Rebalance
+
+- Desktop largo: circa 32% controlli, 45% circuito, 23% classifica/Race Control.
+- Colonna sinistra più larga e testi più leggibili.
+- Azioni in griglia 2×2 con pulsanti più grandi.
+- Circuito centrale meno dominante.
+- Dado/risoluzione sempre in overlay fisso.
+
 
 Race Command è un party strategy game di corse multiplayer da browser, pensato soprattutto per smartphone ma giocabile anche da tablet e PC.
 
@@ -149,10 +158,10 @@ Apri:
 La build 1.7 corretta deve mostrare:
 
 ```json
-{"ok":true,"version":"1.9.0"}
+{"ok":true,"version":"1.9.1"}
 ```
 
-Durante la gara compare anche il badge `v1.9.0`.
+Durante la gara compare anche il badge `v1.9.1`.
 
 ## Test automatici
 
@@ -171,9 +180,9 @@ Durante la gara compare anche il badge `v1.9.0`.
 
 Le stanze vivono nella memoria del processo Node. Un riavvio o redeploy dell'host elimina le partite attive. È una scelta adatta all'uso hobby/privato attuale e mantiene l'architettura semplice; una versione con persistenza delle sessioni richiederebbe uno storage esterno.
 
-### Updater GitHub 1.9.0
+### Updater GitHub 1.9.1
 
-Se una versione precedente mostrava il prompt PowerShell `Destination:`, la 1.9.0 elimina quel problema: i percorsi non vengono più passati come parametri della riga di comando.
+Se una versione precedente mostrava il prompt PowerShell `Destination:`, la 1.9.1 elimina quel problema: i percorsi non vengono più passati come parametri della riga di comando.
 
 ## Layout desktop v1.9
 

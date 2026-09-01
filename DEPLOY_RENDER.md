@@ -44,7 +44,7 @@ Apri:
 
 `https://TUO-URL.onrender.com/api/health`
 
-Per la v1.7 deve comparire `"version":"1.9.0"`.
+Per la v1.9.1 deve comparire `"version":"1.9.1"`.
 
 ## Multiplayer da reti diverse
 

@@ -124,7 +124,7 @@
 }
 
 /* =============================================================
-   Race Command 1.9 — TRUE WIDESCREEN DESKTOP LAYOUT
+   Race Command 1.9.1 — TRUE WIDESCREEN DESKTOP LAYOUT
    Uses the whole horizontal viewport: controls | circuit | live sidebar.
    ============================================================= */
 @media (min-width:1200px){
@@ -244,4 +244,89 @@
   .raceSidebar{display:grid;gap:8px;margin-top:8px}
   .raceTrackPanel .trackHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
   .trackMiniStatus{display:none}
+}
+
+
+/* =============================================================
+   Race Command 1.9.1 — DESKTOP LAYOUT REBALANCE
+   More room for decisions, less oversized circuit.
+   At 1200px+: ~32% controls | 45% circuit | 23% live sidebar.
+   ============================================================= */
+@media (min-width:1200px){
+  .raceLayoutWide{
+    grid-template-columns:minmax(470px,32%) minmax(560px,45%) minmax(330px,23%)!important;
+    gap:8px!important;
+  }
+
+  /* LEFT — readable strategy cockpit */
+  .raceControlsPanel{
+    padding:10px!important;
+    gap:8px!important;
+    grid-template-rows:auto auto auto auto minmax(205px,1fr)!important;
+  }
+  .raceControlsPanel>.stats{gap:8px!important}
+  .raceControlsPanel>.card{padding:10px 11px!important;border-radius:11px!important}
+  .raceControlsPanel .stats .card{padding:9px 11px!important}
+  .raceControlsPanel .big{font-size:30px!important}
+  .raceControlsPanel #countdown{font-size:30px!important}
+  .raceControlsPanel .ey{font-size:10px!important;letter-spacing:.09em}
+  .raceControlsPanel .small{font-size:10px!important;line-height:1.34!important}
+  .raceControlsPanel b{font-size:13px}
+  .raceControlsPanel .ring{width:36px;height:36px;border-width:4px;font-size:12px}
+  .raceControlsPanel .bar{height:7px}
+  .raceControlsPanel .weatherNow{font-size:18px!important}
+  .raceControlsPanel .forecast{gap:5px!important;margin-top:7px!important}
+  .raceControlsPanel .forecast div{padding:5px 2px!important;font-size:9px!important}
+  .raceControlsPanel .forecast b{font-size:14px!important}
+  .pitPlanActions .btn{min-height:36px!important;padding:0 11px!important;font-size:10px!important}
+
+  /* The four strategic choices stay comfortably readable. */
+  .actionGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+    margin-top:8px!important;
+  }
+  .raceControlsPanel .action{
+    min-height:57px!important;
+    padding:8px 7px!important;
+    font-size:11px!important;
+  }
+  .raceControlsPanel .action small{font-size:9px!important;line-height:1.2!important}
+  .raceControlsPanel .confirmAction{min-height:42px!important;margin-top:8px!important;font-size:11px!important}
+  .raceControlsPanel .lockCount{font-size:10px!important;margin-top:6px!important}
+
+  /* CENTER — still the visual anchor, but no longer a giant poster. */
+  .raceTrackPanel{padding:9px!important}
+  .raceTrackPanel>.trackWrap{
+    width:100%!important;
+    height:100%!important;
+    max-width:760px!important;
+    justify-self:center!important;
+    padding:9px!important;
+  }
+  .raceTrackPanel>.trackWrap svg{
+    width:100%!important;
+    height:100%!important;
+    max-width:760px!important;
+  }
+
+  /* RIGHT — enough width for names, resources and Race Control. */
+  .raceRankingPanel,.raceFeedPanel{padding:9px!important}
+  .raceRankingPanel .rankRow{min-height:54px!important;padding:7px 9px!important}
+  .raceRankingPanel .rankRow .small{font-size:9.5px!important}
+
+  /* The dice remains viewport-fixed and cannot fall below the fold. */
+  .resolution.show{
+    left:54.5%!important;
+    top:49%!important;
+    width:min(430px,28vw)!important;
+  }
+}
+
+/* Medium desktop/laptop: prioritize controls before hiding the live sidebar. */
+@media (min-width:1000px) and (max-width:1199px){
+  .raceLayoutWide{grid-template-columns:minmax(390px,40%) minmax(0,60%)!important}
+  .raceControlsPanel .ey{font-size:10px}
+  .raceControlsPanel .small{font-size:10px}
+  .actionGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 }
